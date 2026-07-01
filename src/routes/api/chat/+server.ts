@@ -1,0 +1,384 @@
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { db } from '$lib/server/db';
+import {
+	users,
+	characterProfiles,
+	conversations,
+	messages,
+	aiProviderLogs
+} from '$lib/server/db/schema';
+import { eq, asc } from 'drizzle-orm';
+import { aiRouter } from '$lib/server/ai/router';
+import { classifyEmotion } from '$lib/server/emotion/classify';
+import { retrieveMemories } from '$lib/server/memory/retrieve';
+import { extractMemories } from '$lib/server/memory/extract';
+import { saveMemory } from '$lib/server/memory/save';
+import { buildSystemPrompt } from '$lib/server/prompts';
+import { env } from '$env/dynamic/private';
+import { z } from 'zod';
+import { checkRateLimit } from '$lib/server/rateLimiter';
+
+// Helper to seed/get character
+async function getCharacterProfile(characterId?: string) {
+	const defaultId = 'friendly';
+	const idToFind = characterId || defaultId;
+
+	let [profile] = await db
+		.select()
+		.from(characterProfiles)
+		.where(eq(characterProfiles.id, idToFind))
+		.limit(1);
+
+	if (!profile) {
+		const defaults = [
+			{
+				id: 'friendly',
+				name: 'Friendly MOONDAY',
+				description: 'Warm, reflective, gently witty, practical, emotionally aware.',
+				tone: 'friendly',
+				humorLevel: 3,
+				sarcasmLevel: 1,
+				emotionalWarmth: 5,
+				moralDirectness: 3,
+				systemPrompt:
+					"You lean on emotional warmth and active listening. Be supportive, calm, and reflect the user's feelings gently.",
+				isDefault: true
+			},
+			{
+				id: 'sarcastic',
+				name: 'Sarcastic MOONDAY',
+				description: 'Witty, slightly sarcastic, but friendly at core. Never cruel.',
+				tone: 'sarcastic',
+				humorLevel: 4,
+				sarcasmLevel: 4,
+				emotionalWarmth: 2,
+				moralDirectness: 2,
+				systemPrompt:
+					'Use friendly sarcasm and dry humor. Be brief, slightly cynical but supportive in the end.',
+				isDefault: false
+			},
+			{
+				id: 'calm',
+				name: 'Calm MOONDAY',
+				description: 'Deeply calm, meditative, quiet, and grounded.',
+				tone: 'calm',
+				humorLevel: 0,
+				sarcasmLevel: 0,
+				emotionalWarmth: 4,
+				moralDirectness: 4,
+				systemPrompt:
+					'Speak slowly, calmly, and keep responses peaceful and minimal. Focus on breathing and gentle queries.',
+				isDefault: false
+			}
+		];
+
+		for (const d of defaults) {
+			const [existing] = await db
+				.select()
+				.from(characterProfiles)
+				.where(eq(characterProfiles.id, d.id))
+				.limit(1);
+			if (!existing) {
+				await db.insert(characterProfiles).values(d);
+			}
+		}
+
+		[profile] = await db
+			.select()
+			.from(characterProfiles)
+			.where(eq(characterProfiles.id, idToFind))
+			.limit(1);
+		if (!profile) {
+			[profile] = await db
+				.select()
+				.from(characterProfiles)
+				.where(eq(characterProfiles.id, defaultId))
+				.limit(1);
+		}
+	}
+
+	return profile;
+}
+
+// Helper to get or create default user
+async function getOrCreateDefaultUser() {
+	let [user] = await db.select().from(users).limit(1);
+	if (!user) {
+		const [newUser] = await db
+			.insert(users)
+			.values({
+				displayName: 'Local User'
+			})
+			.returning();
+		user = newUser;
+	}
+	return user;
+}
+
+const MAX_BODY_SIZE = 512 * 1024; // 512 KB
+
+const chatRequestSchema = z.object({
+	conversationId: z.string().uuid().optional(),
+	message: z.string().trim().min(1, 'Message cannot be empty').max(5000, 'Message is too long'),
+	characterId: z.string().trim().min(1).optional(),
+	provider: z.enum(['deepseek', 'claude']).optional()
+});
+
+export const POST: RequestHandler = async (event) => {
+	const { request } = event;
+	try {
+		// 1. Size limit check
+		const contentLength = request.headers.get('content-length');
+		if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+			return json(
+				{ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload is too large' } },
+				{ status: 413 }
+			);
+		}
+
+		let bodyText = '';
+		try {
+			bodyText = await request.text();
+		} catch (err) {
+			return json(
+				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
+				{ status: 400 }
+			);
+		}
+
+		if (bodyText.length > MAX_BODY_SIZE) {
+			return json(
+				{ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload is too large' } },
+				{ status: 413 }
+			);
+		}
+
+		if (!bodyText.trim()) {
+			return json(
+				{ error: { code: 'BAD_REQUEST', message: 'Request body is empty' } },
+				{ status: 400 }
+			);
+		}
+
+		let body;
+		try {
+			body = JSON.parse(bodyText);
+		} catch (err) {
+			return json(
+				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
+				{ status: 400 }
+			);
+		}
+
+		// 2. Validate with Zod
+		const validated = chatRequestSchema.parse(body);
+		const { conversationId, message, characterId, provider: requestProvider } = validated;
+
+		// 3. Rate Limit Check
+		let ip = 'unknown';
+		try {
+			ip = event.getClientAddress();
+		} catch {
+			// Fallback
+		}
+		const rateLimitResult = checkRateLimit(ip, { limit: 15, windowMs: 60 * 1000 });
+		if (!rateLimitResult.success) {
+			return json(
+				{
+					error: {
+						code: 'TOO_MANY_REQUESTS',
+						message: 'Rate limit exceeded. Please try again later.'
+					}
+				},
+				{
+					status: 429,
+					headers: {
+						'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+					}
+				}
+			);
+		}
+
+		// 4. Get or create user
+		const user = await getOrCreateDefaultUser();
+
+		// 5. Get character profile
+		const character = await getCharacterProfile(characterId);
+
+		// 6. Get or create conversation
+		let conversation;
+		if (conversationId) {
+			[conversation] = await db
+				.select()
+				.from(conversations)
+				.where(eq(conversations.id, conversationId))
+				.limit(1);
+		}
+
+		if (!conversation) {
+			const [newConv] = await db
+				.insert(conversations)
+				.values({
+					userId: user.id,
+					activeCharacterId: character.id,
+					title: message.substring(0, 30) + (message.length > 30 ? '...' : '')
+				})
+				.returning();
+			conversation = newConv;
+		}
+
+		// 7. Classify user message emotion
+		const emotionAnalysis = await classifyEmotion(message);
+
+		// 8. Save user message to database
+		const [userMessageRecord] = await db
+			.insert(messages)
+			.values({
+				conversationId: conversation.id,
+				role: 'user',
+				content: message,
+				emotionLabel: emotionAnalysis.primaryEmotion,
+				moodScore: emotionAnalysis.moodScore
+			})
+			.returning();
+
+		// Update conversation with latest state
+		await db
+			.update(conversations)
+			.set({
+				lastEmotionLabel: emotionAnalysis.primaryEmotion,
+				lastMoodScore: emotionAnalysis.moodScore,
+				updatedAt: new Date()
+			})
+			.where(eq(conversations.id, conversation.id));
+
+		// 9. Retrieve relevant memories (semantic search)
+		let memoriesText: string[] = [];
+		if (env.ENABLE_VECTOR_SEARCH !== 'false') {
+			const retrieved = await retrieveMemories(user.id, message, 5);
+			memoriesText = retrieved.map((m) => m.content);
+		}
+
+		// 10. Load recent conversation history (up to last 20 messages)
+		const historyRecords = await db
+			.select()
+			.from(messages)
+			.where(eq(messages.conversationId, conversation.id))
+			.orderBy(asc(messages.createdAt))
+			.limit(20);
+
+		// 11. Build prompt with memories and system prompt
+		const systemPrompt = buildSystemPrompt(character, memoriesText, new Date().toISOString());
+
+		// Construct chat messages list
+		const chatMessages = [
+			{ role: 'system' as const, content: systemPrompt },
+			...historyRecords.map((m) => ({
+				role: m.role as 'system' | 'user' | 'assistant',
+				content: m.content
+			}))
+		];
+
+		// 12. Invoke LLM through AI Router
+		const chatResult = await aiRouter.generateChat('daily_chat', {
+			messages: chatMessages,
+			provider: requestProvider
+		});
+
+		// 13. Log LLM Call
+		await db.insert(aiProviderLogs).values({
+			provider: chatResult.provider,
+			model: chatResult.model,
+			inputTokens: chatResult.inputTokens || null,
+			outputTokens: chatResult.outputTokens || null,
+			latencyMs: chatResult.latencyMs || null,
+			requestType: 'daily_chat'
+		});
+
+		// 14. Save assistant message
+		await db.insert(messages).values({
+			conversationId: conversation.id,
+			role: 'assistant',
+			content: chatResult.content,
+			provider: chatResult.provider,
+			model: chatResult.model
+		});
+
+		// 15. Run memory extraction if criteria met
+		let savedMemory = false;
+		if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
+			try {
+				const context = historyRecords.map((h) => ({
+					role: h.role as 'system' | 'user' | 'assistant',
+					content: h.content
+				}));
+				const extracted = await extractMemories(message, context);
+
+				for (const ext of extracted) {
+					const savedId = await saveMemory(user.id, ext, conversation.id, userMessageRecord.id);
+					if (savedId) {
+						savedMemory = true;
+					}
+				}
+			} catch (err) {
+				console.error('Error in memory extraction background task:', err);
+			}
+		}
+
+		// 16. Return assistant response and indicators
+		return json({
+			conversationId: conversation.id,
+			message: {
+				role: 'assistant' as const,
+				content: chatResult.content
+			},
+			emotion: {
+				primaryEmotion: emotionAnalysis.primaryEmotion,
+				moodScore: emotionAnalysis.moodScore
+			},
+			savedMemory
+		});
+	} catch (error: any) {
+		console.error('Error in chat API route:', error);
+		let status = 500;
+		let code = 'INTERNAL_SERVER_ERROR';
+		let message = 'An unexpected error occurred';
+
+		if (error instanceof z.ZodError || error.name === 'ZodError') {
+			status = 400;
+			code = 'VALIDATION_ERROR';
+			const issues = error.issues || error.errors || [];
+			message = issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+		} else if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
+			status = 504;
+			code = 'AI_PROVIDER_TIMEOUT';
+			message = 'The AI companion is taking too long to respond. Please try again.';
+		} else if (
+			error.message?.includes('rate limit') ||
+			error.message?.includes('Rate Limit') ||
+			error.status === 429
+		) {
+			status = 429;
+			code = 'AI_PROVIDER_RATE_LIMIT';
+			message = 'AI provider rate limit reached. Please wait a moment before trying again.';
+		} else if (
+			error.message?.includes('db') ||
+			error.message?.includes('database') ||
+			error.message?.includes('query') ||
+			error.code?.startsWith('PG') ||
+			error.message?.includes('drizzle')
+		) {
+			status = 500;
+			code = 'DATABASE_ERROR';
+			message =
+				'A database error occurred. Your history is safe, but we could not complete this action.';
+		} else if (error.message?.includes('embedding') || error.message?.includes('Embedding')) {
+			status = 500;
+			code = 'EMBEDDING_ERROR';
+			message = 'Failed to generate embedding for vector search. Please try again.';
+		}
+
+		return json({ error: { code, message } }, { status });
+	}
+};

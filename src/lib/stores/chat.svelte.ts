@@ -1,0 +1,302 @@
+import { browser } from '$app/environment';
+import { characterStore } from './character.svelte';
+import { settingsStore } from './settings.svelte';
+
+export interface ChatMessage {
+	id: string;
+	role: 'user' | 'assistant' | 'system';
+	content: string;
+	emotionLabel?: string;
+	moodScore?: number;
+	createdAt: string;
+}
+
+export interface Conversation {
+	id: string;
+	title: string;
+	activeCharacterId: string;
+	summary?: string;
+	lastEmotionLabel?: string;
+	lastMoodScore?: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+const MOCK_REPLIES = [
+	"I hear you. It sounds like you're carrying a lot on your shoulders today. What's the smallest step you could take to feel a bit more in control?",
+	"That's really interesting. It seems like there's a pattern of feeling motivated early on, but then getting overwhelmed. Let's look at why that happens.",
+	"I'm here to listen. Sometimes, naming the feeling is the hardest part. Would you say it's more like tiredness, or is there some frustration mixed in?",
+	"The moon reflects your light, and I reflect your thoughts. Let's break down that project so it doesn't feel like a mountain.",
+	'It is okay to not have it all figured out. Today is just one page of a larger book. Tell me more about what went well, even if it was tiny.'
+];
+
+export class ChatStore {
+	conversations = $state<Conversation[]>([]);
+	activeId = $state<string | null>(null);
+	messages = $state<Record<string, ChatMessage[]>>({}); // Indexed by conversation ID
+	isThinking = $state<boolean>(false);
+	error = $state<string | null>(null);
+
+	activeConversation = $derived.by(() => {
+		return this.conversations.find((c) => c.id === this.activeId) || null;
+	});
+
+	activeMessages = $derived.by(() => {
+		if (!this.activeId) return [];
+		return this.messages[this.activeId] || [];
+	});
+
+	constructor() {
+		if (browser) {
+			const savedConvs = localStorage.getItem('moonday_conversations');
+			const savedMsgs = localStorage.getItem('moonday_messages');
+
+			if (savedConvs) {
+				try {
+					this.conversations = JSON.parse(savedConvs);
+				} catch (e) {
+					console.error('Failed to parse conversations:', e);
+				}
+			}
+
+			if (savedMsgs) {
+				try {
+					this.messages = JSON.parse(savedMsgs);
+				} catch (e) {
+					console.error('Failed to parse messages:', e);
+				}
+			}
+
+			// If there are no conversations, create a default one
+			if (this.conversations.length === 0) {
+				this.createNewConversation();
+			} else {
+				this.activeId = this.conversations[0].id;
+			}
+		}
+	}
+
+	saveToLocalStorage() {
+		if (browser) {
+			localStorage.setItem('moonday_conversations', JSON.stringify(this.conversations));
+			localStorage.setItem('moonday_messages', JSON.stringify(this.messages));
+		}
+	}
+
+	createNewConversation() {
+		const newId = crypto.randomUUID();
+		const newConv: Conversation = {
+			id: newId,
+			title: `Reflections with ${characterStore.activeCharacter.name}`,
+			activeCharacterId: characterStore.activeId,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString()
+		};
+
+		this.conversations = [newConv, ...this.conversations];
+		this.messages[newId] = [
+			{
+				id: crypto.randomUUID(),
+				role: 'system',
+				content: `You are chatting with ${characterStore.activeCharacter.name}.`,
+				createdAt: new Date().toISOString()
+			},
+			{
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: `Hello! I'm here as ${characterStore.activeCharacter.name}. How are you feeling today? Let's navigate your thoughts together.`,
+				createdAt: new Date().toISOString()
+			}
+		];
+		this.activeId = newId;
+		this.saveToLocalStorage();
+		return newConv;
+	}
+
+	selectConversation(id: string) {
+		if (this.conversations.some((c) => c.id === id)) {
+			this.activeId = id;
+			// Sync character to match conversation context if possible
+			const conv = this.conversations.find((c) => c.id === id);
+			if (conv) {
+				characterStore.selectCharacter(conv.activeCharacterId);
+			}
+		}
+	}
+
+	deleteConversation(id: string) {
+		this.conversations = this.conversations.filter((c) => c.id !== id);
+		delete this.messages[id];
+		this.saveToLocalStorage();
+
+		if (this.activeId === id) {
+			if (this.conversations.length > 0) {
+				this.activeId = this.conversations[0].id;
+			} else {
+				this.createNewConversation();
+			}
+		}
+	}
+
+	updateConversationTitle(id: string, newTitle: string) {
+		const conv = this.conversations.find((c) => c.id === id);
+		if (conv) {
+			conv.title = newTitle;
+			conv.updatedAt = new Date().toISOString();
+			this.saveToLocalStorage();
+		}
+	}
+
+	async sendMessage(content: string) {
+		if (!content.trim() || !this.activeId) return;
+
+		// 1. Add User Message
+		const userMsg: ChatMessage = {
+			id: crypto.randomUUID(),
+			role: 'user',
+			content,
+			createdAt: new Date().toISOString()
+		};
+
+		this.messages[this.activeId] = [...(this.messages[this.activeId] || []), userMsg];
+		this.isThinking = true;
+		this.error = null;
+		this.saveToLocalStorage();
+
+		// Change avatar to listening, then thinking
+		characterStore.activeCharacter.avatarState = 'thinking';
+
+		try {
+			// Call api route /api/chat
+			const response = await fetch('/api/chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					conversationId: this.activeId,
+					message: content,
+					characterId: characterStore.activeId,
+					provider: settingsStore.provider
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error('API server returned error');
+			}
+
+			const data = await response.json();
+
+			characterStore.activeCharacter.avatarState = 'speaking';
+
+			const assistantMsg: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: data.message.content,
+				emotionLabel: data.emotion?.primaryEmotion || 'neutral',
+				moodScore: data.emotion?.moodScore ?? 0,
+				createdAt: new Date().toISOString()
+			};
+
+			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
+
+			// Update conversation meta details
+			const conv = this.conversations.find((c) => c.id === this.activeId);
+			if (conv) {
+				conv.lastEmotionLabel = data.emotion?.primaryEmotion;
+				conv.lastMoodScore = data.emotion?.moodScore;
+				conv.updatedAt = new Date().toISOString();
+			}
+
+			// Set the avatar to match the emotion of the reply
+			this.updateAvatarFromEmotion(data.emotion?.primaryEmotion);
+		} catch (err) {
+			console.warn('API error, falling back to local simulation:', err);
+
+			// Fallback: Simulation of response
+			await new Promise((resolve) => setTimeout(resolve, 1500));
+
+			characterStore.activeCharacter.avatarState = 'speaking';
+
+			const randomReply = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
+			const mockEmotion = this.analyzeMockEmotion(content);
+
+			const assistantMsg: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: randomReply,
+				emotionLabel: mockEmotion.label,
+				moodScore: mockEmotion.score,
+				createdAt: new Date().toISOString()
+			};
+
+			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
+
+			const conv = this.conversations.find((c) => c.id === this.activeId);
+			if (conv) {
+				conv.lastEmotionLabel = mockEmotion.label;
+				conv.lastMoodScore = mockEmotion.score;
+				conv.updatedAt = new Date().toISOString();
+			}
+
+			this.updateAvatarFromEmotion(mockEmotion.label);
+		} finally {
+			this.isThinking = false;
+			this.saveToLocalStorage();
+		}
+	}
+
+	updateAvatarFromEmotion(emotion: string | undefined) {
+		if (!emotion) {
+			characterStore.activeCharacter.avatarState = 'idle';
+			return;
+		}
+
+		const map: Record<string, 'happy' | 'concerned' | 'sleepy' | 'idle'> = {
+			happy: 'happy',
+			motivated: 'happy',
+			hopeful: 'happy',
+			calm: 'idle',
+			neutral: 'idle',
+			tired: 'sleepy',
+			confused: 'concerned',
+			anxious: 'concerned',
+			sad: 'concerned',
+			angry: 'concerned',
+			overwhelmed: 'concerned',
+			lonely: 'concerned'
+		};
+
+		characterStore.activeCharacter.avatarState = map[emotion] || 'idle';
+
+		// Reset to idle after some time if speaking
+		setTimeout(() => {
+			if (characterStore.activeCharacter.avatarState === 'speaking') {
+				characterStore.activeCharacter.avatarState = 'idle';
+			}
+		}, 3000);
+	}
+
+	analyzeMockEmotion(text: string): { label: string; score: number } {
+		const lower = text.toLowerCase();
+		if (lower.includes('sad') || lower.includes('cry') || lower.includes('hurt')) {
+			return { label: 'sad', score: -4 };
+		}
+		if (lower.includes('stress') || lower.includes('overwhelm') || lower.includes('busy')) {
+			return { label: 'overwhelmed', score: -5 };
+		}
+		if (lower.includes('tired') || lower.includes('sleepy') || lower.includes('exhausted')) {
+			return { label: 'tired', score: -1 };
+		}
+		if (lower.includes('happy') || lower.includes('great') || lower.includes('glad')) {
+			return { label: 'happy', score: 4 };
+		}
+		if (lower.includes('anxious') || lower.includes('worry') || lower.includes('nervous')) {
+			return { label: 'anxious', score: -3 };
+		}
+		if (lower.includes('angry') || lower.includes('mad') || lower.includes('hate')) {
+			return { label: 'angry', score: -4 };
+		}
+		return { label: 'neutral', score: 0 };
+	}
+}
+
+export const chatStore = new ChatStore();
