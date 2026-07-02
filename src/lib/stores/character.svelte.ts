@@ -71,7 +71,7 @@ export const CHARACTERS: CharacterProfile[] = [
 ];
 
 export class CharacterStore {
-	list = CHARACTERS;
+	list = $state(CHARACTERS);
 	activeId = $state<string>('friendly');
 
 	constructor() {

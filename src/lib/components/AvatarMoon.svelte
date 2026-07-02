@@ -1,8 +1,78 @@
 <script lang="ts">
+	import { uiStore } from '$lib/stores/ui.svelte';
+	import { spring } from 'svelte/motion';
+
 	// Props for states: 'idle', 'listening', 'thinking', 'speaking', 'happy', 'concerned', 'sleepy'
-	let { state = 'idle' } = $props<{
-		state: 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'sleepy';
+	let { state } = $props<{
+		state?: 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'sleepy';
 	}>();
+
+	// Sync prop to uiStore if provided
+	$effect(() => {
+		if (state) {
+			uiStore.moonState = state;
+		}
+	});
+
+	// Get reactive current state from uiStore
+	let currentState = $derived(uiStore.moonState);
+
+	// Spring configurations for 60 FPS scale and glow animations
+	const scale = spring(1.0, {
+		stiffness: 0.1,
+		damping: 0.6
+	});
+
+	const glow = spring(1.0, {
+		stiffness: 0.1,
+		damping: 0.6
+	});
+
+	// Reactively update spring targets based on currentState
+	$effect(() => {
+		let intervalId: any;
+
+		if (currentState === 'listening') {
+			scale.set(1.15);
+			glow.set(1.2);
+		} else if (currentState === 'thinking') {
+			scale.set(0.9);
+			glow.set(0.7);
+		} else if (currentState === 'speaking') {
+			// Rapid random fluctuation in scale/glow target to mimic voice
+			intervalId = setInterval(() => {
+				scale.set(1.0 + Math.random() * 0.15);
+				glow.set(0.7 + Math.random() * 0.5);
+			}, 80);
+		} else if (currentState === 'sleepy') {
+			scale.set(0.95);
+			glow.set(0.4);
+		} else if (currentState === 'idle') {
+			scale.set(1.0);
+			// Gentle pulsing slow glow
+			let pulseDir = 1;
+			glow.set(0.8);
+			intervalId = setInterval(() => {
+				pulseDir = pulseDir === 1 ? 0 : 1;
+				glow.set(pulseDir === 1 ? 1.05 : 0.75);
+			}, 2000);
+		} else if (currentState === 'happy') {
+			scale.set(1.08);
+			glow.set(1.1);
+		} else if (currentState === 'concerned') {
+			scale.set(0.98);
+			glow.set(0.85);
+		} else {
+			scale.set(1.0);
+			glow.set(1.0);
+		}
+
+		return () => {
+			if (intervalId) {
+				clearInterval(intervalId);
+			}
+		};
+	});
 
 	// Color configurations for the moon glow based on mood state
 	const colors = {
@@ -43,7 +113,7 @@
 		}
 	};
 
-	let colorConfig = $derived(colors[state as keyof typeof colors] || colors.idle);
+	let colorConfig = $derived(colors[currentState as keyof typeof colors] || colors.idle);
 </script>
 
 <div
@@ -51,23 +121,19 @@
 >
 	<!-- Background glow ring -->
 	<div
-		class="absolute inset-0 rounded-full transition-all duration-700 ease-in-out blur-xl opacity-80"
-		style="background-color: {colorConfig.glow}; transform: scale({state === 'listening'
-			? 1.15
-			: state === 'speaking'
-				? 1.08
-				: 1.0});"
+		class="absolute inset-0 rounded-full blur-xl transition-colors duration-700 ease-in-out"
+		style="background-color: {colorConfig.glow}; transform: scale({$glow}); opacity: {$glow * 0.75};"
 	></div>
 
 	<!-- Outer pulsating ring (when active) -->
-	{#if state === 'listening'}
+	{#if currentState === 'listening'}
 		<div
 			class="absolute inset-[-8px] rounded-full border border-cyan-400/30 animate-pulse pointer-events-none"
 		></div>
 		<div
 			class="absolute inset-[-16px] rounded-full border border-cyan-400/15 animate-ping opacity-30 pointer-events-none"
 		></div>
-	{:else if state === 'thinking'}
+	{:else if currentState === 'thinking'}
 		<div
 			class="absolute inset-[-6px] rounded-full border border-dashed border-purple-500/30 animate-[spin_12s_linear_infinite] pointer-events-none"
 		></div>
@@ -76,28 +142,28 @@
 	<!-- Main Moon Body -->
 	<svg
 		viewBox="0 0 100 100"
-		class="w-full h-full relative z-10 transition-transform duration-500 ease-in-out cursor-pointer select-none"
-		class:animate-float={state !== 'sleepy'}
-		class:animate-[pulse_4s_ease-in-out_infinite]={state === 'sleepy'}
-		style="filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4));"
+		class="w-full h-full relative z-10 cursor-pointer select-none"
+		class:animate-float={currentState !== 'sleepy'}
+		class:animate-[pulse_4s_ease-in-out_infinite]={currentState === 'sleepy'}
+		style="filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4)); transform: scale({$scale});"
 	>
 		<!-- Gradient Definitions -->
 		<defs>
 			<radialGradient id="moonGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
 				<stop offset="0%" stop-color="#ffffff" />
-				{#if state === 'sleepy'}
+				{#if currentState === 'sleepy'}
 					<stop offset="70%" stop-color="#94a3b8" />
 					<stop offset="100%" stop-color="#475569" />
-				{:else if state === 'happy' || state === 'speaking'}
+				{:else if currentState === 'happy' || currentState === 'speaking'}
 					<stop offset="70%" stop-color="#fef08a" />
 					<stop offset="100%" stop-color="#eab308" />
-				{:else if state === 'listening'}
+				{:else if currentState === 'listening'}
 					<stop offset="75%" stop-color="#cffafe" />
 					<stop offset="100%" stop-color="#0891b2" />
-				{:else if state === 'concerned'}
+				{:else if currentState === 'concerned'}
 					<stop offset="75%" stop-color="#e0f2fe" />
 					<stop offset="100%" stop-color="#2563eb" />
-				{:else if state === 'thinking'}
+				{:else if currentState === 'thinking'}
 					<stop offset="75%" stop-color="#f3e8ff" />
 					<stop offset="100%" stop-color="#7c3aed" />
 				{:else}
@@ -134,7 +200,7 @@
 		<!-- Face Features Group -->
 		<g class="transition-all duration-300">
 			<!-- Eyes -->
-			{#if state === 'happy'}
+			{#if currentState === 'happy'}
 				<!-- Happy curved closed eyes (^-^) -->
 				<path
 					d="M 28 48 Q 35 40 42 48"
@@ -150,7 +216,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'sleepy' || state === 'idle'}
+			{:else if currentState === 'sleepy' || currentState === 'idle'}
 				<!-- Peaceful closed curved down eyes (u_u) -->
 				<path
 					d="M 28 46 Q 35 52 42 46"
@@ -166,7 +232,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'listening'}
+			{:else if currentState === 'listening'}
 				<!-- Receptive interested eyes (wide o_o) -->
 				<circle cx="35" cy="46" r="3" fill="#1e293b" />
 				<circle cx="65" cy="46" r="3" fill="#1e293b" />
@@ -185,7 +251,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'thinking'}
+			{:else if currentState === 'thinking'}
 				<!-- Eyes looking sideways/upward -->
 				<g class="animate-[pulse_1s_infinite]">
 					<ellipse cx="36" cy="44" rx="2.5" ry="3" fill="#1e293b" />
@@ -205,7 +271,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'concerned'}
+			{:else if currentState === 'concerned'}
 				<!-- Worried / concerned eyes and tilted brows -->
 				<circle cx="35" cy="47" r="3" fill="#1e293b" />
 				<circle cx="65" cy="47" r="3" fill="#1e293b" />
@@ -223,7 +289,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'speaking'}
+			{:else if currentState === 'speaking'}
 				<!-- Open animated eyes -->
 				<circle cx="35" cy="46" r="3.5" fill="#1e293b" />
 				<circle cx="65" cy="46" r="3.5" fill="#1e293b" />
@@ -244,7 +310,7 @@
 			{/if}
 
 			<!-- Mouth -->
-			{#if state === 'happy'}
+			{#if currentState === 'happy'}
 				<!-- Smiling mouth -->
 				<path
 					d="M 40 58 Q 50 68 60 58"
@@ -253,7 +319,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'concerned'}
+			{:else if currentState === 'concerned'}
 				<!-- Soft sad/frown or flat line mouth -->
 				<path
 					d="M 42 60 Q 50 56 58 60"
@@ -262,10 +328,10 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'sleepy'}
+			{:else if currentState === 'sleepy'}
 				<!-- Tiny O mouth (breathing) -->
 				<circle cx="50" cy="58" r="2" fill="#1e293b" />
-			{:else if state === 'thinking'}
+			{:else if currentState === 'thinking'}
 				<!-- Flat wavy or side smirk mouth -->
 				<path
 					d="M 44 59 Q 50 57 56 59"
@@ -274,7 +340,7 @@
 					stroke-linecap="round"
 					fill="none"
 				/>
-			{:else if state === 'speaking'}
+			{:else if currentState === 'speaking'}
 				<!-- Pulsing open mouth -->
 				<ellipse
 					cx="50"
@@ -284,7 +350,7 @@
 					fill="#1e293b"
 					class="animate-[bounce_0.2s_infinite_alternate]"
 				/>
-			{:else if state === 'listening'}
+			{:else if currentState === 'listening'}
 				<!-- Small soft smile -->
 				<path
 					d="M 43 57 Q 50 62 57 57"
@@ -305,10 +371,10 @@
 			{/if}
 
 			<!-- Cute Blushing Cheeks -->
-			{#if state === 'happy' || state === 'speaking' || state === 'idle'}
+			{#if currentState === 'happy' || currentState === 'speaking' || currentState === 'idle'}
 				<ellipse cx="25" cy="53" rx="4" ry="2.5" fill="#f87171" opacity="0.35" />
 				<ellipse cx="75" cy="53" rx="4" ry="2.5" fill="#f87171" opacity="0.35" />
-			{:else if state === 'concerned'}
+			{:else if currentState === 'concerned'}
 				<ellipse cx="25" cy="53" rx="3.5" ry="2" fill="#60a5fa" opacity="0.25" />
 				<ellipse cx="75" cy="53" rx="3.5" ry="2" fill="#60a5fa" opacity="0.25" />
 			{/if}
@@ -316,7 +382,7 @@
 	</svg>
 
 	<!-- Sleepy Floating Zzz's -->
-	{#if state === 'sleepy'}
+	{#if currentState === 'sleepy'}
 		<div class="absolute right-0 top-0 text-pale-silver select-none pointer-events-none">
 			<span class="absolute z-bubble-1 text-lg font-bold opacity-0">Z</span>
 			<span

@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { characterStore } from './character.svelte';
 import { settingsStore } from './settings.svelte';
+import { uiStore } from '$lib/stores/ui.svelte';
 
 export interface ChatMessage {
 	id: string;
@@ -166,6 +167,7 @@ export class ChatStore {
 
 		// Change avatar to listening, then thinking
 		characterStore.activeCharacter.avatarState = 'thinking';
+		uiStore.setMoonState('thinking');
 
 		const assistantMsgId = crypto.randomUUID();
 		let startedStreaming = false;
@@ -212,7 +214,10 @@ export class ChatStore {
 			try {
 				while (true) {
 					const { done, value } = await reader.read();
-					if (done) break;
+					if (done) {
+						uiStore.setMoonState('idle');
+						break;
+					}
 
 					buffer += decoder.decode(value, { stream: true });
 					const lines = buffer.split('\n');
@@ -233,9 +238,11 @@ export class ChatStore {
 										this.updateAvatarFromEmotion(data.emotion.primaryEmotion);
 									}
 									characterStore.activeCharacter.avatarState = 'speaking';
+									uiStore.setMoonState('speaking');
 								} else if (data.type === 'token') {
 									assistantMsg.content += data.content;
 									this.messages[this.activeId!] = [...this.messages[this.activeId!]];
+									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
 									const conv = this.conversations.find((c) => c.id === this.activeId);
 									if (conv) {
@@ -243,6 +250,7 @@ export class ChatStore {
 										conv.lastMoodScore = assistantMsg.moodScore;
 										conv.updatedAt = new Date().toISOString();
 									}
+									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
 									throw new Error(data.error?.message || 'Error in stream');
 								}
@@ -270,6 +278,7 @@ export class ChatStore {
 				this.isStreaming = false;
 			}
 		} catch (err) {
+			uiStore.setMoonState('idle');
 			console.warn('API error, falling back to local simulation:', err);
 
 			if (startedStreaming) {
@@ -281,6 +290,7 @@ export class ChatStore {
 			await new Promise((resolve) => setTimeout(resolve, 1500));
 
 			characterStore.activeCharacter.avatarState = 'speaking';
+			uiStore.setMoonState('speaking');
 
 			const randomReply = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
 			const mockEmotion = this.analyzeMockEmotion(content);
@@ -304,7 +314,9 @@ export class ChatStore {
 			}
 
 			this.updateAvatarFromEmotion(mockEmotion.label);
-		} finally {
+			uiStore.setMoonState('idle');
+		}
+ finally {
 			this.isThinking = false;
 			this.saveToLocalStorage();
 		}

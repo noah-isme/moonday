@@ -4,6 +4,7 @@
 	import AvatarMoon from '$lib/components/AvatarMoon.svelte';
 	import { characterStore } from '$lib/stores/character.svelte';
 	import { page } from '$app/state';
+	import { uiStore } from '$lib/stores/ui.svelte';
 
 	let { children } = $props();
 
@@ -64,7 +65,7 @@
 			class="flex flex-col items-center justify-center my-6 py-4 bg-deep-navy/30 rounded-3xl border border-slate-gray/5"
 		>
 			<div class="w-32 h-32 flex items-center justify-center">
-				<AvatarMoon state={characterStore.activeCharacter.avatarState} />
+				<AvatarMoon state={uiStore.moonState} />
 			</div>
 			<div class="mt-4 text-center">
 				<span class="text-xs font-semibold text-slate-gray uppercase tracking-wider block"
@@ -72,7 +73,7 @@
 				>
 				<span class="text-sm font-bold text-soft-white">{characterStore.activeCharacter.name}</span>
 				<span class="text-[10px] text-violet-glow block mt-0.5 capitalize italic">
-					({characterStore.activeCharacter.avatarState})
+					({uiStore.moonState})
 				</span>
 			</div>
 		</div>
@@ -123,7 +124,7 @@
 				>{characterStore.activeCharacter.name}</span
 			>
 			<div class="w-10 h-10">
-				<AvatarMoon state={characterStore.activeCharacter.avatarState} />
+				<AvatarMoon state={uiStore.moonState} />
 			</div>
 		</div>
 	</header>
