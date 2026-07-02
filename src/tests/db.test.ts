@@ -175,8 +175,8 @@ describe('Database and Schema Operations', () => {
 
 	it('should support memories and pgvector similarity search operations', async () => {
 		// Create test memory with dummy embedding
-		const mockEmbedding1 = new Array(1536).fill(0).map((_, i) => (i === 0 ? 1.0 : 0.0));
-		const mockEmbedding2 = new Array(1536).fill(0).map((_, i) => (i === 1 ? 1.0 : 0.0));
+		const mockEmbedding1 = new Array(384).fill(0).map((_, i) => (i === 0 ? 1.0 : 0.0));
+		const mockEmbedding2 = new Array(384).fill(0).map((_, i) => (i === 1 ? 1.0 : 0.0));
 
 		const memory1 = await createMemoryWithEmbedding(
 			{
@@ -214,7 +214,7 @@ describe('Database and Schema Operations', () => {
 		expect(list.length).toBeGreaterThanOrEqual(2);
 
 		// Similarity search using vector query close to mockEmbedding1
-		const queryVec = new Array(1536).fill(0).map((_, i) => (i === 0 ? 0.99 : i === 1 ? 0.01 : 0.0));
+		const queryVec = new Array(384).fill(0).map((_, i) => (i === 0 ? 0.99 : i === 1 ? 0.01 : 0.0));
 		const searchResults = await searchMemories(testUserId, queryVec, 5);
 
 		expect(searchResults.length).toBeGreaterThan(0);

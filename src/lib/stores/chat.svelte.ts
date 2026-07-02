@@ -35,6 +35,7 @@ export class ChatStore {
 	activeId = $state<string | null>(null);
 	messages = $state<Record<string, ChatMessage[]>>({}); // Indexed by conversation ID
 	isThinking = $state<boolean>(false);
+	isStreaming = $state<boolean>(false);
 	error = $state<string | null>(null);
 
 	activeConversation = $derived.by(() => {
@@ -166,6 +167,9 @@ export class ChatStore {
 		// Change avatar to listening, then thinking
 		characterStore.activeCharacter.avatarState = 'thinking';
 
+		const assistantMsgId = crypto.randomUUID();
+		let startedStreaming = false;
+
 		try {
 			// Call api route /api/chat
 			const response = await fetch('/api/chat', {
@@ -175,7 +179,8 @@ export class ChatStore {
 					conversationId: this.activeId,
 					message: content,
 					characterId: characterStore.activeId,
-					provider: settingsStore.provider
+					provider: settingsStore.provider,
+					stream: true
 				})
 			});
 
@@ -183,33 +188,94 @@ export class ChatStore {
 				throw new Error('API server returned error');
 			}
 
-			const data = await response.json();
-
-			characterStore.activeCharacter.avatarState = 'speaking';
-
-			const assistantMsg: ChatMessage = {
-				id: crypto.randomUUID(),
-				role: 'assistant',
-				content: data.message.content,
-				emotionLabel: data.emotion?.primaryEmotion || 'neutral',
-				moodScore: data.emotion?.moodScore ?? 0,
-				createdAt: new Date().toISOString()
-			};
-
-			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
-
-			// Update conversation meta details
-			const conv = this.conversations.find((c) => c.id === this.activeId);
-			if (conv) {
-				conv.lastEmotionLabel = data.emotion?.primaryEmotion;
-				conv.lastMoodScore = data.emotion?.moodScore;
-				conv.updatedAt = new Date().toISOString();
+			const reader = response.body?.getReader();
+			if (!reader) {
+				throw new Error('Response body is not readable');
 			}
 
-			// Set the avatar to match the emotion of the reply
-			this.updateAvatarFromEmotion(data.emotion?.primaryEmotion);
+			this.isStreaming = true;
+			this.isThinking = false;
+			startedStreaming = true;
+
+			// Add assistant message shell
+			const assistantMsg: ChatMessage = {
+				id: assistantMsgId,
+				role: 'assistant',
+				content: '',
+				createdAt: new Date().toISOString()
+			};
+			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
+
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split('\n');
+					buffer = lines.pop() || '';
+
+					for (const line of lines) {
+						const trimmed = line.trim();
+						if (!trimmed) continue;
+
+						if (trimmed.startsWith('data: ')) {
+							const jsonStr = trimmed.slice(6);
+							try {
+								const data = JSON.parse(jsonStr);
+								if (data.type === 'start') {
+									if (data.emotion) {
+										assistantMsg.emotionLabel = data.emotion.primaryEmotion || 'neutral';
+										assistantMsg.moodScore = data.emotion.moodScore ?? 0;
+										this.updateAvatarFromEmotion(data.emotion.primaryEmotion);
+									}
+									characterStore.activeCharacter.avatarState = 'speaking';
+								} else if (data.type === 'token') {
+									assistantMsg.content += data.content;
+									this.messages[this.activeId!] = [...this.messages[this.activeId!]];
+								} else if (data.type === 'done') {
+									const conv = this.conversations.find((c) => c.id === this.activeId);
+									if (conv) {
+										conv.lastEmotionLabel = assistantMsg.emotionLabel;
+										conv.lastMoodScore = assistantMsg.moodScore;
+										conv.updatedAt = new Date().toISOString();
+									}
+								} else if (data.type === 'error') {
+									throw new Error(data.error?.message || 'Error in stream');
+								}
+							} catch (e) {
+								console.error('Error parsing SSE line:', e);
+							}
+						}
+					}
+				}
+
+				if (buffer && buffer.startsWith('data: ')) {
+					const jsonStr = buffer.slice(6);
+					try {
+						const data = JSON.parse(jsonStr);
+						if (data.type === 'token') {
+							assistantMsg.content += data.content;
+							this.messages[this.activeId!] = [...this.messages[this.activeId!]];
+						}
+					} catch (e) {
+						// Ignore
+					}
+				}
+			} finally {
+				reader.releaseLock();
+				this.isStreaming = false;
+			}
 		} catch (err) {
 			console.warn('API error, falling back to local simulation:', err);
+
+			if (startedStreaming) {
+				this.error = err instanceof Error ? err.message : 'Streaming interrupted.';
+				return;
+			}
 
 			// Fallback: Simulation of response
 			await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -220,7 +286,7 @@ export class ChatStore {
 			const mockEmotion = this.analyzeMockEmotion(content);
 
 			const assistantMsg: ChatMessage = {
-				id: crypto.randomUUID(),
+				id: assistantMsgId,
 				role: 'assistant',
 				content: randomReply,
 				emotionLabel: mockEmotion.label,

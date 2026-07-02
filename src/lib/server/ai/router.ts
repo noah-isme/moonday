@@ -64,10 +64,22 @@ export class AIRouter {
 		return this.providers[providerName];
 	}
 
+	generateChat(
+		taskType: RoutingTaskType,
+		options: GenerateChatOptions & { stream: true }
+	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
+	generateChat(
+		taskType: RoutingTaskType,
+		options: GenerateChatOptions & { stream?: false }
+	): Promise<GenerateChatResult>;
+	generateChat(
+		taskType: RoutingTaskType,
+		options: GenerateChatOptions
+	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;
 	async generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions
-	): Promise<GenerateChatResult> {
+	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>> {
 		// Let options.provider override the routed provider if explicitly specified
 		let provider: AIProvider;
 		if (options.provider) {
@@ -89,7 +101,7 @@ export class AIRouter {
 			}
 		}
 
-		return provider.generateChat(mergedOptions);
+		return provider.generateChat(mergedOptions as any);
 	}
 }
 

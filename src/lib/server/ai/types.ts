@@ -11,6 +11,7 @@ export type GenerateChatOptions = {
 	messages: ChatMessage[];
 	temperature?: number;
 	maxTokens?: number;
+	stream?: boolean;
 };
 
 export type GenerateChatResult = {
@@ -24,5 +25,13 @@ export type GenerateChatResult = {
 
 export interface AIProvider {
 	name: AIProviderName;
-	generateChat(options: GenerateChatOptions): Promise<GenerateChatResult>;
+	generateChat(
+		options: GenerateChatOptions & { stream: true }
+	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
+	generateChat(
+		options: GenerateChatOptions & { stream?: false }
+	): Promise<GenerateChatResult>;
+	generateChat(
+		options: GenerateChatOptions
+	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;
 }

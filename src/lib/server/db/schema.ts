@@ -1,7 +1,7 @@
 import { pgTable, uuid, text, integer, boolean, timestamp, real } from 'drizzle-orm/pg-core';
 import { vector } from 'drizzle-orm/pg-core';
 
-export const EMBEDDING_DIMENSION = 1536;
+export const EMBEDDING_DIMENSION = 384;
 
 export const users = pgTable('users', {
 	id: uuid('id').defaultRandom().primaryKey(),

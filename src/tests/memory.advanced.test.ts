@@ -135,8 +135,8 @@ describe('Advanced Memory Engine Features', () => {
 		it('should refuse to save memory if it is a semantic cosine duplicate (similarity >= 0.90)', async () => {
 			const originalGetEmbedding = embeddingService.getEmbedding;
 
-			const mockVec1 = new Array(1536).fill(0).map((_, i) => (i === 0 ? 1.0 : 0.0));
-			const mockVec2 = new Array(1536)
+			const mockVec1 = new Array(384).fill(0).map((_, i) => (i === 0 ? 1.0 : 0.0));
+			const mockVec2 = new Array(384)
 				.fill(0)
 				.map((_, i) => (i === 0 ? 0.95 : i === 1 ? 0.31225 : 0.0));
 

@@ -21,19 +21,39 @@ import { checkRateLimit } from '$lib/server/rateLimiter';
 
 // Helper to seed/get character
 async function getCharacterProfile(characterId?: string) {
-	const defaultId = 'friendly';
-	const idToFind = characterId || defaultId;
+	const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-	let [profile] = await db
-		.select()
-		.from(characterProfiles)
-		.where(eq(characterProfiles.id, idToFind))
-		.limit(1);
+	let profile;
+	if (characterId && isUUID(characterId)) {
+		[profile] = await db
+			.select()
+			.from(characterProfiles)
+			.where(eq(characterProfiles.id, characterId))
+			.limit(1);
+	}
 
 	if (!profile) {
+		const toneToFind = characterId && !isUUID(characterId) ? characterId : 'friendly';
+		[profile] = await db
+			.select()
+			.from(characterProfiles)
+			.where(eq(characterProfiles.tone, toneToFind))
+			.limit(1);
+	}
+
+	if (!profile) {
+		// Try finding the default
+		[profile] = await db
+			.select()
+			.from(characterProfiles)
+			.where(eq(characterProfiles.isDefault, true))
+			.limit(1);
+	}
+
+	if (!profile) {
+		// Fallback to inserting/seeding defaults, using valid column types
 		const defaults = [
 			{
-				id: 'friendly',
 				name: 'Friendly MOONDAY',
 				description: 'Warm, reflective, gently witty, practical, emotionally aware.',
 				tone: 'friendly',
@@ -42,11 +62,10 @@ async function getCharacterProfile(characterId?: string) {
 				emotionalWarmth: 5,
 				moralDirectness: 3,
 				systemPrompt:
-					"You lean on emotional warmth and active listening. Be supportive, calm, and reflect the user's feelings gently.",
+					"You lean on active listening and emotional warmth. Be supportive, calm, and reflect the user's feelings gently.",
 				isDefault: true
 			},
 			{
-				id: 'sarcastic',
 				name: 'Sarcastic MOONDAY',
 				description: 'Witty, slightly sarcastic, but friendly at core. Never cruel.',
 				tone: 'sarcastic',
@@ -59,7 +78,6 @@ async function getCharacterProfile(characterId?: string) {
 				isDefault: false
 			},
 			{
-				id: 'calm',
 				name: 'Calm MOONDAY',
 				description: 'Deeply calm, meditative, quiet, and grounded.',
 				tone: 'calm',
@@ -77,23 +95,25 @@ async function getCharacterProfile(characterId?: string) {
 			const [existing] = await db
 				.select()
 				.from(characterProfiles)
-				.where(eq(characterProfiles.id, d.id))
+				.where(eq(characterProfiles.tone, d.tone))
 				.limit(1);
 			if (!existing) {
 				await db.insert(characterProfiles).values(d);
 			}
 		}
 
+		const toneToFind = characterId && !isUUID(characterId) ? characterId : 'friendly';
 		[profile] = await db
 			.select()
 			.from(characterProfiles)
-			.where(eq(characterProfiles.id, idToFind))
+			.where(eq(characterProfiles.tone, toneToFind))
 			.limit(1);
+
 		if (!profile) {
 			[profile] = await db
 				.select()
 				.from(characterProfiles)
-				.where(eq(characterProfiles.id, defaultId))
+				.where(eq(characterProfiles.isDefault, true))
 				.limit(1);
 		}
 	}
@@ -122,7 +142,8 @@ const chatRequestSchema = z.object({
 	conversationId: z.string().uuid().optional(),
 	message: z.string().trim().min(1, 'Message cannot be empty').max(5000, 'Message is too long'),
 	characterId: z.string().trim().min(1).optional(),
-	provider: z.enum(['deepseek', 'claude']).optional()
+	provider: z.enum(['deepseek', 'claude']).optional(),
+	stream: z.boolean().optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -173,7 +194,7 @@ export const POST: RequestHandler = async (event) => {
 
 		// 2. Validate with Zod
 		const validated = chatRequestSchema.parse(body);
-		const { conversationId, message, characterId, provider: requestProvider } = validated;
+		const { conversationId, message, characterId, provider: requestProvider, stream } = validated;
 
 		// 3. Rate Limit Check
 		let ip = 'unknown';
@@ -281,64 +302,211 @@ export const POST: RequestHandler = async (event) => {
 		];
 
 		// 12. Invoke LLM through AI Router
-		const chatResult = await aiRouter.generateChat('daily_chat', {
-			messages: chatMessages,
-			provider: requestProvider
-		});
+		const shouldStream = stream !== false;
 
-		// 13. Log LLM Call
-		await db.insert(aiProviderLogs).values({
-			provider: chatResult.provider,
-			model: chatResult.model,
-			inputTokens: chatResult.inputTokens || null,
-			outputTokens: chatResult.outputTokens || null,
-			latencyMs: chatResult.latencyMs || null,
-			requestType: 'daily_chat'
-		});
+		if (shouldStream) {
+			const streamResult = await aiRouter.generateChat('daily_chat', {
+				messages: chatMessages,
+				provider: requestProvider,
+				stream: true
+			});
 
-		// 14. Save assistant message
-		await db.insert(messages).values({
-			conversationId: conversation.id,
-			role: 'assistant',
-			content: chatResult.content,
-			provider: chatResult.provider,
-			model: chatResult.model
-		});
+			const encoder = new TextEncoder();
+			const customStream = new ReadableStream({
+				async start(controller) {
+					try {
+						// Send initial metadata event
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({
+									type: 'start',
+									conversationId: conversation.id,
+									emotion: {
+										primaryEmotion: emotionAnalysis.primaryEmotion,
+										moodScore: emotionAnalysis.moodScore
+									}
+								})}\n\n`
+							)
+						);
 
-		// 15. Run memory extraction if criteria met
-		let savedMemory = false;
-		if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
-			try {
-				const context = historyRecords.map((h) => ({
-					role: h.role as 'system' | 'user' | 'assistant',
-					content: h.content
-				}));
-				const extracted = await extractMemories(message, context);
+						const iterator = streamResult[Symbol.asyncIterator]();
+						let fullContent = '';
+						let finalResult: any = undefined;
 
-				for (const ext of extracted) {
-					const savedId = await saveMemory(user.id, ext, conversation.id, userMessageRecord.id);
-					if (savedId) {
-						savedMemory = true;
+						while (true) {
+							const { done, value } = await iterator.next();
+							if (done) {
+								finalResult = value;
+								break;
+							}
+							const chunk = value as string;
+							fullContent += chunk;
+							controller.enqueue(
+								encoder.encode(
+									`data: ${JSON.stringify({
+										type: 'token',
+										content: chunk
+									})}\n\n`
+								)
+							);
+						}
+
+						const providerVal = finalResult?.provider || requestProvider || 'deepseek';
+						const modelVal = finalResult?.model || 'deepseek-chat';
+
+						// Log LLM Call
+						await db.insert(aiProviderLogs).values({
+							provider: providerVal,
+							model: modelVal,
+							inputTokens: finalResult?.inputTokens || null,
+							outputTokens: finalResult?.outputTokens || null,
+							latencyMs: finalResult?.latencyMs || null,
+							requestType: 'daily_chat'
+						});
+
+						// Save assistant message
+						await db.insert(messages).values({
+							conversationId: conversation.id,
+							role: 'assistant',
+							content: fullContent,
+							provider: providerVal,
+							model: modelVal
+						});
+
+						// Run memory extraction if criteria met
+						let savedMemory = false;
+						if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
+							try {
+								const context = historyRecords.map((h) => ({
+									role: h.role as 'system' | 'user' | 'assistant',
+									content: h.content
+								}));
+								const extracted = await extractMemories(message, context);
+
+								for (const ext of extracted) {
+									const savedId = await saveMemory(
+										user.id,
+										ext,
+										conversation.id,
+										userMessageRecord.id
+									);
+									if (savedId) {
+										savedMemory = true;
+									}
+								}
+							} catch (err) {
+								console.error('Error in memory extraction background task:', err);
+							}
+						}
+
+						// Send final done event
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({
+									type: 'done',
+									savedMemory
+								})}\n\n`
+							)
+						);
+						controller.close();
+					} catch (streamError: any) {
+						console.error('Error in chat stream execution:', streamError);
+						let code = 'INTERNAL_SERVER_ERROR';
+						let errMsg = 'An unexpected error occurred during stream generation';
+
+						if (streamError.message?.includes('timeout') || streamError.message?.includes('Timeout')) {
+							code = 'AI_PROVIDER_TIMEOUT';
+							errMsg = 'The AI companion is taking too long to respond. Please try again.';
+						} else if (
+							streamError.message?.includes('rate limit') ||
+							streamError.message?.includes('Rate Limit') ||
+							streamError.status === 429
+						) {
+							code = 'AI_PROVIDER_RATE_LIMIT';
+							errMsg = 'AI provider rate limit reached. Please wait a moment.';
+						}
+
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({
+									type: 'error',
+									error: { code, message: errMsg }
+								})}\n\n`
+							)
+						);
+						controller.close();
 					}
 				}
-			} catch (err) {
-				console.error('Error in memory extraction background task:', err);
-			}
-		}
+			});
 
-		// 16. Return assistant response and indicators
-		return json({
-			conversationId: conversation.id,
-			message: {
-				role: 'assistant' as const,
-				content: chatResult.content
-			},
-			emotion: {
-				primaryEmotion: emotionAnalysis.primaryEmotion,
-				moodScore: emotionAnalysis.moodScore
-			},
-			savedMemory
-		});
+			return new Response(customStream, {
+				headers: {
+					'Content-Type': 'text/event-stream',
+					'Cache-Control': 'no-cache',
+					'Connection': 'keep-alive'
+				}
+			});
+		} else {
+			// Non-streaming fallback
+			const chatResult = await aiRouter.generateChat('daily_chat', {
+				messages: chatMessages,
+				provider: requestProvider,
+				stream: false
+			});
+
+			// Log LLM Call
+			await db.insert(aiProviderLogs).values({
+				provider: chatResult.provider,
+				model: chatResult.model,
+				inputTokens: chatResult.inputTokens || null,
+				outputTokens: chatResult.outputTokens || null,
+				latencyMs: chatResult.latencyMs || null,
+				requestType: 'daily_chat'
+			});
+
+			// Save assistant message
+			await db.insert(messages).values({
+				conversationId: conversation.id,
+				role: 'assistant',
+				content: chatResult.content,
+				provider: chatResult.provider,
+				model: chatResult.model
+			});
+
+			// Run memory extraction if criteria met
+			let savedMemory = false;
+			if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
+				try {
+					const context = historyRecords.map((h) => ({
+						role: h.role as 'system' | 'user' | 'assistant',
+						content: h.content
+					}));
+					const extracted = await extractMemories(message, context);
+
+					for (const ext of extracted) {
+						const savedId = await saveMemory(user.id, ext, conversation.id, userMessageRecord.id);
+						if (savedId) {
+							savedMemory = true;
+						}
+					}
+				} catch (err) {
+					console.error('Error in memory extraction background task:', err);
+				}
+			}
+
+			return json({
+				conversationId: conversation.id,
+				message: {
+					role: 'assistant' as const,
+					content: chatResult.content
+				},
+				emotion: {
+					primaryEmotion: emotionAnalysis.primaryEmotion,
+					moodScore: emotionAnalysis.moodScore
+				},
+				savedMemory
+			});
+		}
 	} catch (error: any) {
 		console.error('Error in chat API route:', error);
 		let status = 500;

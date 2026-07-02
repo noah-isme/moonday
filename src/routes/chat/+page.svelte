@@ -17,7 +17,7 @@
 
 	let activeConv = $derived(chatStore.activeConversation);
 	let messages = $derived(chatStore.activeMessages);
-	let isThinking = $derived(chatStore.isThinking);
+	let isThinkingOrStreaming = $derived(chatStore.isThinking || chatStore.isStreaming);
 
 	function focus(node: HTMLInputElement) {
 		node.focus();
@@ -34,9 +34,10 @@
 		}
 	}
 
-	// Trigger scrolling when messages change or AI is thinking
+	// Trigger scrolling when messages change or content of last message updates, or AI is thinking/streaming
 	$effect(() => {
-		if (messages.length > 0 || isThinking) {
+		const lastContent = messages[messages.length - 1]?.content;
+		if (messages.length > 0 || chatStore.isThinking || chatStore.isStreaming || lastContent) {
 			scrollToBottom('smooth');
 		}
 	});
@@ -301,7 +302,7 @@
 
 		<!-- Scrollable Messages Container -->
 		<div bind:this={scrollContainer} class="flex-1 overflow-y-auto px-1 scroll-smooth">
-			{#each messages as msg}
+			{#each messages as msg (msg.id)}
 				{#if msg.role !== 'system'}
 					<ChatBubble message={msg} characterName={activeCompanionName} />
 				{/if}
@@ -331,7 +332,7 @@
 			{/each}
 
 			<!-- Thinking Bubbles -->
-			{#if isThinking}
+			{#if chatStore.isThinking}
 				<div class="flex w-full my-4 justify-start animate-pulse">
 					<div class="max-w-[70%] flex flex-col gap-1">
 						<div class="px-1 text-xs text-slate-gray select-none">
@@ -358,7 +359,7 @@
 
 		<!-- Chat Input Area -->
 		<div class="pt-4 border-t border-slate-gray/10 mt-2">
-			<ChatInput onSend={handleSend} {isThinking} />
+			<ChatInput onSend={handleSend} isThinking={isThinkingOrStreaming} />
 		</div>
 	</div>
 

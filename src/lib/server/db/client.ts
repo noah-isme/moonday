@@ -16,11 +16,10 @@ export const db = drizzle(client, { schema });
 // Run migrations on startup (server-side only)
 if (typeof window === 'undefined') {
 	console.log('Checking and running database migrations...');
-	migrate(db, { migrationsFolder: 'src/lib/server/db/migrations' })
-		.then(() => {
-			console.log('Database migrations verified/completed successfully.');
-		})
-		.catch((err) => {
-			console.error('Failed to run database migrations:', err);
-		});
+	try {
+		await migrate(db, { migrationsFolder: 'src/lib/server/db/migrations' });
+		console.log('Database migrations verified/completed successfully.');
+	} catch (err) {
+		console.error('Failed to run database migrations:', err);
+	}
 }
