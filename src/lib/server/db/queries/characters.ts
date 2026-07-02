@@ -6,10 +6,9 @@ export interface CreateCharacterInput {
 	name: string;
 	description?: string;
 	tone?: string;
-	humorLevel: number;
-	sarcasmLevel: number;
-	emotionalWarmth: number;
-	moralDirectness: number;
+	traits?: Record<string, number>;
+	exampleDialogues?: string[];
+	temperature?: number;
 	systemPrompt: string;
 	isDefault?: boolean;
 }
@@ -18,10 +17,9 @@ export interface UpdateCharacterInput {
 	name?: string;
 	description?: string;
 	tone?: string;
-	humorLevel?: number;
-	sarcasmLevel?: number;
-	emotionalWarmth?: number;
-	moralDirectness?: number;
+	traits?: Record<string, number>;
+	exampleDialogues?: string[];
+	temperature?: number;
 	systemPrompt?: string;
 	isDefault?: boolean;
 }
@@ -33,10 +31,9 @@ export async function createCharacterProfile(input: CreateCharacterInput) {
 			name: input.name,
 			description: input.description,
 			tone: input.tone,
-			humorLevel: input.humorLevel,
-			sarcasmLevel: input.sarcasmLevel,
-			emotionalWarmth: input.emotionalWarmth,
-			moralDirectness: input.moralDirectness,
+			traits: input.traits ?? {},
+			exampleDialogues: input.exampleDialogues ?? [],
+			temperature: input.temperature ?? 0.7,
 			systemPrompt: input.systemPrompt,
 			isDefault: input.isDefault ?? false
 		})

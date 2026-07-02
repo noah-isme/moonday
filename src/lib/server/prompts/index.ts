@@ -1,12 +1,14 @@
+import { TraitSchema, compileTraitsToDirectives } from './compiler';
+export { TraitSchema, compileTraitsToDirectives } from './compiler';
+
 export interface CharacterProfile {
 	id: string;
 	name: string;
 	description: string | null;
 	tone: string | null;
-	humorLevel: number;
-	sarcasmLevel: number;
-	emotionalWarmth: number;
-	moralDirectness: number;
+	traits: Record<string, number>;
+	exampleDialogues: string[] | null;
+	temperature: number;
 	systemPrompt: string;
 }
 
@@ -15,10 +17,19 @@ export const DEFAULT_CHARACTER: CharacterProfile = {
 	name: 'Friendly MOONDAY',
 	description: 'Warm, reflective, gently witty, practical, emotionally aware.',
 	tone: 'friendly',
-	humorLevel: 3,
-	sarcasmLevel: 1,
-	emotionalWarmth: 5,
-	moralDirectness: 3,
+	traits: {
+		warmth: 9,
+		humor: 6,
+		honesty: 8,
+		formality: 3,
+		sarcasm: 2,
+		moralDirectness: 5
+	},
+	exampleDialogues: [
+		'User: Aku sedih hari ini.',
+		'MOONDAY: Ceritakan apa yang terjadi, aku di sini mendengarkan.'
+	],
+	temperature: 0.7,
 	systemPrompt: `You lean on emotional warmth and active listening. Be supportive, calm, and reflect the user's feelings gently.`
 };
 
@@ -57,28 +68,30 @@ export function buildSystemPrompt(
 ): string {
 	let prompt = BASE_SYSTEM_PROMPT;
 
-	// Add Character Profile directives
-	prompt += `\n\n[Active Character Profile: ${character.name}]
-Description: ${character.description ?? ''}
-Tone Settings:
-- Tone: ${character.tone ?? ''}
-- Humor Level: ${character.humorLevel}/5
-- Sarcasm Level: ${character.sarcasmLevel}/5
-- Emotional Warmth: ${character.emotionalWarmth}/5
-- Moral Directness: ${character.moralDirectness}/5
-
-Character Directives:
-${character.systemPrompt}`;
-
-	// Add Memories context
-	if (memories.length > 0) {
-		prompt += `\n\nRelevant user memories (use these naturally when contextually appropriate, do not force them):
-${memories.map((m) => `- ${m}`).join('\n')}`;
+	// Compiled Traits
+	const validatedTraits = TraitSchema.parse(character.traits || {});
+	const compiledTraits = compileTraitsToDirectives(validatedTraits);
+	if (compiledTraits) {
+		prompt += `\n\n[Persona Directives]\n${compiledTraits}`;
 	}
 
-	// Add Current Date context
-	prompt += `\n\n[Contextual Information]
-Current timestamp is: ${currentDate}`;
+	// Character System Prompt (additional custom directives)
+	if (character.systemPrompt) {
+		prompt += `\n\n[Character Style Guide]\n${character.systemPrompt}`;
+	}
+
+	// Few-Shot Examples (example dialogues)
+	if (character.exampleDialogues && character.exampleDialogues.length > 0) {
+		prompt += `\n\n[Example Dialogues]\n${character.exampleDialogues.join('\n')}`;
+	}
+
+	// Context/Memories (RAG memories)
+	if (memories.length > 0) {
+		prompt += `\n\n[Relevant Memories]\n${memories.map((m) => `- ${m}`).join('\n')}`;
+	}
+
+	// Contextual Information
+	prompt += `\n\n[Contextual Information]\nCurrent timestamp is: ${currentDate}`;
 
 	return prompt;
 }

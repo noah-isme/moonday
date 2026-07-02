@@ -1,0 +1,50 @@
+import { z } from 'zod';
+
+export const TraitSchema = z.object({
+	warmth: z.number().min(1).max(10).default(5),
+	honesty: z.number().min(1).max(10).default(5),
+	formality: z.number().min(1).max(10).default(5),
+	sarcasm: z.number().min(1).max(10).default(5),
+	humor: z.number().min(1).max(10).default(5),
+	moralDirectness: z.number().min(1).max(10).default(5)
+});
+
+export function compileTraitsToDirectives(traits: z.infer<typeof TraitSchema>): string {
+	const directives: string[] = [];
+
+	if (traits.warmth > 8) {
+		directives.push('You express deep empathy and support.');
+	} else if (traits.warmth < 4) {
+		directives.push('You are emotionally detached and neutral.');
+	}
+
+	if (traits.honesty > 8) {
+		directives.push('You are brutally honest and candid.');
+	} else if (traits.honesty < 4) {
+		directives.push('You prioritize tact and gentleness over harsh honesty.');
+	}
+
+	if (traits.formality > 7) {
+		directives.push('You speak formally and professionally.');
+	} else if (traits.formality < 4) {
+		directives.push('You speak casually and informally.');
+	}
+
+	if (traits.sarcasm > 7) {
+		directives.push('You use dry humor and friendly sarcasm.');
+	} else if (traits.sarcasm < 3) {
+		directives.push('You are straightforward and never sarcastic.');
+	}
+
+	if (traits.humor > 7) {
+		directives.push('You display high humor, keeping the conversation lighthearted and witty.');
+	} else if (traits.humor < 3) {
+		directives.push('You maintain a serious and focused tone, using humor very sparingly.');
+	}
+
+	if (traits.moralDirectness > 7) {
+		directives.push('You offer direct moral and growth guidance.');
+	}
+
+	return directives.join(' ');
+}

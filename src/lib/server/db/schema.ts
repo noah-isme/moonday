@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, real } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, boolean, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 import { vector } from 'drizzle-orm/pg-core';
 
 export const EMBEDDING_DIMENSION = 384;
@@ -15,10 +15,9 @@ export const characterProfiles = pgTable('character_profiles', {
 	name: text('name').notNull(),
 	description: text('description'),
 	tone: text('tone'),
-	humorLevel: integer('humor_level').notNull(),
-	sarcasmLevel: integer('sarcasm_level').notNull(),
-	emotionalWarmth: integer('emotional_warmth').notNull(),
-	moralDirectness: integer('moral_directness').notNull(),
+	traits: jsonb('traits').$type<Record<string, number>>().notNull().default({}),
+	exampleDialogues: jsonb('example_dialogues').$type<string[]>().default([]),
+	temperature: real('temperature').default(0.7).notNull(),
 	systemPrompt: text('system_prompt').notNull(),
 	isDefault: boolean('is_default').default(false).notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
