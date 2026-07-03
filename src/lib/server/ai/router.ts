@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { ClaudeProvider } from './providers/claude';
 import { DeepSeekProvider } from './providers/deepseek';
+import { GroqProvider } from './providers/groq';
 import type { AIProvider, AIProviderName, GenerateChatOptions, GenerateChatResult } from './types';
 
 export type RoutingTaskType =
@@ -15,7 +16,8 @@ export class AIRouter {
 	) {
 		this.providers = {
 			claude: new ClaudeProvider(),
-			deepseek: new DeepSeekProvider()
+			deepseek: new DeepSeekProvider(),
+			groq: new GroqProvider()
 		};
 
 		this.routes = {
@@ -54,11 +56,22 @@ export class AIRouter {
 		// Override based on API key availability (robust fallback)
 		const hasDeepseekKey = !!env.DEEPSEEK_API_KEY;
 		const hasClaudeKey = !!env.ANTHROPIC_API_KEY;
+		const hasGroqKey = !!process.env.GROQ_API_KEY || !!env.GROQ_API_KEY;
 
-		if (providerName === 'deepseek' && !hasDeepseekKey && hasClaudeKey) {
-			providerName = 'claude';
-		} else if (providerName === 'claude' && !hasClaudeKey && hasDeepseekKey) {
-			providerName = 'deepseek';
+		const isAvailable = (name: AIProviderName) => {
+			if (name === 'deepseek') return hasDeepseekKey;
+			if (name === 'claude') return hasClaudeKey;
+			if (name === 'groq') return hasGroqKey;
+			return false;
+		};
+
+		if (!isAvailable(providerName)) {
+			// Find first available provider in preferred order: groq, deepseek, claude
+			const order: AIProviderName[] = ['groq', 'deepseek', 'claude'];
+			const fallback = order.find(isAvailable);
+			if (fallback) {
+				providerName = fallback;
+			}
 		}
 
 		return this.providers[providerName];
@@ -82,10 +95,17 @@ export class AIRouter {
 	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>> {
 		// Let options.provider override the routed provider if explicitly specified
 		let provider: AIProvider;
-		if (options.provider) {
+		if (options.provider === 'groq') {
+			provider = this.providers['groq'];
+		} else if (options.provider) {
 			provider = this.providers[options.provider];
 		} else {
-			provider = this.getProviderForTask(taskType);
+			const defaultProvider = env.DEFAULT_AI_PROVIDER;
+			if (!defaultProvider || defaultProvider === 'groq') {
+				provider = this.providers['groq'];
+			} else {
+				provider = this.getProviderForTask(taskType);
+			}
 		}
 
 		// Configure model based on provider if not specified in options
@@ -94,8 +114,14 @@ export class AIRouter {
 			const config = this.route(taskType);
 			if (provider.name === config.provider) {
 				mergedOptions.model = config.model;
+			} else if (provider.name === 'groq') {
+				// Use DEFAULT_AI_MODEL if DEFAULT_AI_PROVIDER is groq, otherwise default llama
+				mergedOptions.model =
+					(env.DEFAULT_AI_PROVIDER === 'groq' && env.DEFAULT_AI_MODEL) || 'llama3-70b-8192';
 			} else if (provider.name === 'deepseek') {
-				mergedOptions.model = env.DEFAULT_AI_MODEL || 'deepseek-chat';
+				// Use DEFAULT_AI_MODEL if DEFAULT_AI_PROVIDER is deepseek, otherwise default deepseek-chat
+				mergedOptions.model =
+					(env.DEFAULT_AI_PROVIDER === 'deepseek' && env.DEFAULT_AI_MODEL) || 'deepseek-chat';
 			} else {
 				mergedOptions.model = env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
 			}

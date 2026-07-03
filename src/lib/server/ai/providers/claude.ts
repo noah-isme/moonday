@@ -7,9 +7,7 @@ export class ClaudeProvider implements AIProvider {
 	generateChat(
 		options: GenerateChatOptions & { stream: true }
 	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
-	generateChat(
-		options: GenerateChatOptions & { stream?: false }
-	): Promise<GenerateChatResult>;
+	generateChat(options: GenerateChatOptions & { stream?: false }): Promise<GenerateChatResult>;
 	generateChat(
 		options: GenerateChatOptions
 	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;
@@ -54,7 +52,9 @@ export class ClaudeProvider implements AIProvider {
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				throw new Error(`Claude API error: ${response.status} ${response.statusText} - ${errorText}`);
+				throw new Error(
+					`Claude API error: ${response.status} ${response.statusText} - ${errorText}`
+				);
 			}
 
 			const reader = response.body?.getReader();

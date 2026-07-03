@@ -60,14 +60,14 @@ describe('UIStore', () => {
 	it('should clear previous timeout when state is changed to another timed state', () => {
 		const store = new UIStore();
 		store.setMoonState('speaking');
-		
+
 		// Advance 5 seconds
 		vi.advanceTimersByTime(5000);
 		expect(store.moonState).toBe('speaking');
 
 		// Switch to thinking, which should clear speaking timeout and set new thinking timeout
 		store.setMoonState('thinking');
-		
+
 		// Advance another 6 seconds. If speaking timeout was not cleared, it would have fired at 10s total (which is 5s from switch), resetting state to idle.
 		// But since thinking started, it needs 10s from the switch.
 		vi.advanceTimersByTime(6000);

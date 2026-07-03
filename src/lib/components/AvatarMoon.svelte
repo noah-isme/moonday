@@ -122,7 +122,8 @@
 	<!-- Background glow ring -->
 	<div
 		class="absolute inset-0 rounded-full blur-xl transition-colors duration-700 ease-in-out"
-		style="background-color: {colorConfig.glow}; transform: scale({$glow}); opacity: {$glow * 0.75};"
+		style="background-color: {colorConfig.glow}; transform: scale({$glow}); opacity: {$glow *
+			0.75};"
 	></div>
 
 	<!-- Outer pulsating ring (when active) -->

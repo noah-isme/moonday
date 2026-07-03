@@ -1,4 +1,4 @@
-export type AIProviderName = 'deepseek' | 'claude';
+export type AIProviderName = 'deepseek' | 'claude' | 'groq';
 
 export type ChatMessage = {
 	role: 'system' | 'user' | 'assistant';
@@ -28,9 +28,7 @@ export interface AIProvider {
 	generateChat(
 		options: GenerateChatOptions & { stream: true }
 	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
-	generateChat(
-		options: GenerateChatOptions & { stream?: false }
-	): Promise<GenerateChatResult>;
+	generateChat(options: GenerateChatOptions & { stream?: false }): Promise<GenerateChatResult>;
 	generateChat(
 		options: GenerateChatOptions
 	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;

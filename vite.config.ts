@@ -26,6 +26,10 @@ export default defineConfig({
 			}
 		})
 	],
+	server: {
+		port: 5180,
+		strictPort: true
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
@@ -35,7 +39,9 @@ export default defineConfig({
 					name: 'server',
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+					fileParallelism: false,
+					maxWorkers: 1
 				}
 			}
 		]

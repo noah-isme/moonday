@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { DeepSeekProvider } from '../lib/server/ai/providers/deepseek';
 import { ClaudeProvider } from '../lib/server/ai/providers/claude';
+import { GroqProvider } from '../lib/server/ai/providers/groq';
 import { POST as chatPOST } from '../routes/api/chat/+server';
 import { aiRouter } from '../lib/server/ai/router';
 
@@ -26,6 +27,7 @@ vi.mock('$env/dynamic/private', () => {
 			DATABASE_URL: databaseUrl,
 			DEEPSEEK_API_KEY: 'mock-deepseek-key',
 			ANTHROPIC_API_KEY: 'mock-claude-key',
+			GROQ_API_KEY: 'mock-groq-key',
 			DEEPSEEK_BASE_URL: 'https://api.deepseek.com',
 			CLAUDE_MODEL: 'claude-3-5-sonnet-latest',
 			DEFAULT_AI_MODEL: 'deepseek-chat',
@@ -142,6 +144,97 @@ describe('AI Streaming Providers', () => {
 		}
 
 		expect(chunks).toEqual(['Hi there']);
+	});
+
+	it('GroqProvider should parse OpenAI SSE chunks and yield content', async () => {
+		const provider = new GroqProvider();
+
+		const mockResponse = createMockStreamResponse([
+			'data: {"choices":[{"delta":{"content":"Hello"}}],"usage":null}\n',
+			'data: {"choices":[{"delta":{"content":" Groq"}}],"usage":null}\n',
+			'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":6}}\n',
+			'data: [DONE]\n'
+		]);
+
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+
+		const stream = await provider.generateChat({
+			model: 'llama3-70b-8192',
+			messages: [{ role: 'user', content: 'Hi' }],
+			stream: true
+		});
+
+		const chunks: string[] = [];
+		const iterator = stream[Symbol.asyncIterator]();
+
+		while (true) {
+			const { done, value } = await iterator.next();
+			if (done) {
+				expect(value).toEqual({
+					content: 'Hello Groq',
+					provider: 'groq',
+					model: 'llama3-70b-8192',
+					inputTokens: 12,
+					outputTokens: 6,
+					latencyMs: expect.any(Number)
+				});
+				break;
+			}
+			chunks.push(value as string);
+		}
+
+		expect(chunks).toEqual(['Hello', ' Groq']);
+	});
+
+	it('GroqProvider should handle standard non-stream responses', async () => {
+		const provider = new GroqProvider();
+
+		const mockResponse = {
+			ok: true,
+			status: 200,
+			json: async () => ({
+				choices: [{ message: { content: 'Hello standard Groq' } }],
+				usage: { prompt_tokens: 15, completion_tokens: 7 }
+			})
+		} as Response;
+
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+
+		const result = await provider.generateChat({
+			model: 'llama3-70b-8192',
+			messages: [{ role: 'user', content: 'Hi' }],
+			stream: false
+		});
+
+		expect(result).toEqual({
+			content: 'Hello standard Groq',
+			provider: 'groq',
+			model: 'llama3-70b-8192',
+			inputTokens: 15,
+			outputTokens: 7,
+			latencyMs: expect.any(Number)
+		});
+	});
+
+	it('GroqProvider should handle 401 error responses', async () => {
+		const provider = new GroqProvider();
+
+		const mockResponse = {
+			ok: false,
+			status: 401,
+			statusText: 'Unauthorized',
+			text: async () => 'Invalid API Key'
+		} as Response;
+
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+
+		await expect(
+			provider.generateChat({
+				model: 'llama3-70b-8192',
+				messages: [{ role: 'user', content: 'Hi' }],
+				stream: false
+			})
+		).rejects.toThrow('Unauthorized access to Groq: Please verify your GROQ_API_KEY.');
 	});
 });
 

@@ -315,8 +315,7 @@ export class ChatStore {
 
 			this.updateAvatarFromEmotion(mockEmotion.label);
 			uiStore.setMoonState('idle');
-		}
- finally {
+		} finally {
 			this.isThinking = false;
 			this.saveToLocalStorage();
 		}

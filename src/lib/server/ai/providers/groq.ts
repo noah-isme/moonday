@@ -1,8 +1,36 @@
 import { env } from '$env/dynamic/private';
 import type { AIProvider, GenerateChatOptions, GenerateChatResult } from '../types';
 
-export class DeepSeekProvider implements AIProvider {
-	name = 'deepseek' as const;
+async function handleResponseError(response: Response): Promise<never> {
+	const errorText = await response.text();
+	let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
+
+	if (response.status === 401) {
+		errorMessage = 'Unauthorized access to Groq: Please verify your GROQ_API_KEY.';
+	} else if (response.status === 429) {
+		errorMessage = 'Groq API rate limit exceeded. Please try again later.';
+	} else if (response.status >= 500) {
+		errorMessage = 'Groq service error: The AI provider is temporarily unavailable.';
+	} else {
+		try {
+			const parsed = JSON.parse(errorText);
+			if (parsed.error?.message) {
+				errorMessage = `Groq API error: ${parsed.error.message}`;
+			}
+		} catch {
+			if (errorText) {
+				errorMessage += ` - ${errorText}`;
+			}
+		}
+	}
+
+	const error = new Error(errorMessage);
+	(error as any).status = response.status;
+	throw error;
+}
+
+export class GroqProvider implements AIProvider {
+	name = 'groq' as const;
 
 	generateChat(
 		options: GenerateChatOptions & { stream: true }
@@ -21,34 +49,37 @@ export class DeepSeekProvider implements AIProvider {
 	}
 
 	private async generateChatStandard(options: GenerateChatOptions): Promise<GenerateChatResult> {
-		const apiKey = env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY;
+		const apiKey = process.env.GROQ_API_KEY || env.GROQ_API_KEY;
 		if (!apiKey) {
-			throw new Error('DEEPSEEK_API_KEY is not set');
+			throw new Error('GROQ_API_KEY is not set');
 		}
 
-		const baseUrl = env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-		const model = options.model || env.DEFAULT_AI_MODEL || 'deepseek-chat';
+		const model = options.model || env.DEFAULT_AI_MODEL || 'llama3-70b-8192';
 
 		const startTime = Date.now();
-		const response = await fetch(`${baseUrl}/chat/completions`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`
-			},
-			body: JSON.stringify({
-				model,
-				messages: options.messages,
-				temperature: options.temperature ?? 0.7,
-				max_tokens: options.maxTokens ?? 2048
-			})
-		});
+		let response: Response;
+		try {
+			response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${apiKey}`
+				},
+				body: JSON.stringify({
+					model,
+					messages: options.messages,
+					temperature: options.temperature ?? 0.7,
+					max_tokens: options.maxTokens ?? 2048
+				})
+			});
+		} catch (e: any) {
+			const networkError = new Error(`Groq network error: ${e.message || e}`);
+			(networkError as any).status = 500;
+			throw networkError;
+		}
 
 		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`DeepSeek API error: ${response.status} ${response.statusText} - ${errorText}`
-			);
+			await handleResponseError(response);
 		}
 
 		const data = (await response.json()) as {
@@ -60,7 +91,7 @@ export class DeepSeekProvider implements AIProvider {
 
 		return {
 			content,
-			provider: 'deepseek',
+			provider: 'groq',
 			model,
 			inputTokens: data.usage?.prompt_tokens,
 			outputTokens: data.usage?.completion_tokens,
@@ -71,38 +102,41 @@ export class DeepSeekProvider implements AIProvider {
 	private async generateChatStream(
 		options: GenerateChatOptions
 	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>> {
-		const apiKey = env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY;
+		const apiKey = process.env.GROQ_API_KEY || env.GROQ_API_KEY;
 		if (!apiKey) {
-			throw new Error('DEEPSEEK_API_KEY is not set');
+			throw new Error('GROQ_API_KEY is not set');
 		}
 
-		const baseUrl = env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-		const model = options.model || env.DEFAULT_AI_MODEL || 'deepseek-chat';
+		const model = options.model || env.DEFAULT_AI_MODEL || 'llama3-70b-8192';
 
 		const startTime = Date.now();
-		const response = await fetch(`${baseUrl}/chat/completions`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`
-			},
-			body: JSON.stringify({
-				model,
-				messages: options.messages,
-				temperature: options.temperature ?? 0.7,
-				max_tokens: options.maxTokens ?? 2048,
-				stream: true,
-				stream_options: {
-					include_usage: true
-				}
-			})
-		});
+		let response: Response;
+		try {
+			response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${apiKey}`
+				},
+				body: JSON.stringify({
+					model,
+					messages: options.messages,
+					temperature: options.temperature ?? 0.7,
+					max_tokens: options.maxTokens ?? 2048,
+					stream: true,
+					stream_options: {
+						include_usage: true
+					}
+				})
+			});
+		} catch (e: any) {
+			const networkError = new Error(`Groq network error: ${e.message || e}`);
+			(networkError as any).status = 500;
+			throw networkError;
+		}
 
 		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`DeepSeek API error: ${response.status} ${response.statusText} - ${errorText}`
-			);
+			await handleResponseError(response);
 		}
 
 		const reader = response.body?.getReader();
@@ -179,7 +213,7 @@ export class DeepSeekProvider implements AIProvider {
 
 			return {
 				content: fullContent,
-				provider: 'deepseek' as const,
+				provider: 'groq' as const,
 				model,
 				inputTokens: promptTokens,
 				outputTokens: completionTokens,

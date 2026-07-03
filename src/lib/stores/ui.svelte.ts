@@ -1,4 +1,5 @@
-export type MoonState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'sleepy';
+export type MoonState =
+	'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'sleepy';
 
 export class UIStore {
 	moonState = $state<MoonState>('idle');

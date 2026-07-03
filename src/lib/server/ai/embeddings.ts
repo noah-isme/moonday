@@ -23,4 +23,3 @@ export class XenovaEmbeddingService implements EmbeddingService {
 }
 
 export const embeddingService: EmbeddingService = new XenovaEmbeddingService();
-

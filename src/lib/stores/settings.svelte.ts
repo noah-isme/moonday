@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 
 export class SettingsStore {
-	provider = $state<'deepseek' | 'claude'>('deepseek');
+	provider = $state<'deepseek' | 'claude' | 'groq'>('deepseek');
 	model = $state<string>('deepseek-chat');
 	voiceInputEnabled = $state<boolean>(true);
 	voiceOutputEnabled = $state<boolean>(true);
@@ -44,9 +44,15 @@ export class SettingsStore {
 		}
 	}
 
-	setProvider(provider: 'deepseek' | 'claude') {
+	setProvider(provider: 'deepseek' | 'claude' | 'groq') {
 		this.provider = provider;
-		this.model = provider === 'deepseek' ? 'deepseek-chat' : 'claude-3-5-sonnet-latest';
+		if (provider === 'deepseek') {
+			this.model = 'deepseek-chat';
+		} else if (provider === 'claude') {
+			this.model = 'claude-3-5-sonnet-latest';
+		} else {
+			this.model = 'llama3-70b-8192';
+		}
 	}
 
 	setModel(model: string) {

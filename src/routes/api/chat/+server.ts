@@ -21,7 +21,8 @@ import { checkRateLimit } from '$lib/server/rateLimiter';
 
 // Helper to seed/get character
 async function getCharacterProfile(characterId?: string) {
-	const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+	const isUUID = (str: string) =>
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
 	let profile;
 	if (characterId && isUUID(characterId)) {
@@ -169,7 +170,7 @@ const chatRequestSchema = z.object({
 	conversationId: z.string().uuid().optional(),
 	message: z.string().trim().min(1, 'Message cannot be empty').max(5000, 'Message is too long'),
 	characterId: z.string().trim().min(1).optional(),
-	provider: z.enum(['deepseek', 'claude']).optional(),
+	provider: z.enum(['deepseek', 'claude', 'groq']).optional(),
 	stream: z.boolean().optional()
 });
 
@@ -328,6 +329,8 @@ export const POST: RequestHandler = async (event) => {
 			}))
 		];
 
+		console.log('LLM INPUT MESSAGES:', JSON.stringify(chatMessages, null, 2));
+
 		// 12. Invoke LLM through AI Router
 		const shouldStream = stream !== false;
 
@@ -442,7 +445,10 @@ export const POST: RequestHandler = async (event) => {
 						let code = 'INTERNAL_SERVER_ERROR';
 						let errMsg = 'An unexpected error occurred during stream generation';
 
-						if (streamError.message?.includes('timeout') || streamError.message?.includes('Timeout')) {
+						if (
+							streamError.message?.includes('timeout') ||
+							streamError.message?.includes('Timeout')
+						) {
 							code = 'AI_PROVIDER_TIMEOUT';
 							errMsg = 'The AI companion is taking too long to respond. Please try again.';
 						} else if (
@@ -471,7 +477,7 @@ export const POST: RequestHandler = async (event) => {
 				headers: {
 					'Content-Type': 'text/event-stream',
 					'Cache-Control': 'no-cache',
-					'Connection': 'keep-alive'
+					Connection: 'keep-alive'
 				}
 			});
 		} else {
