@@ -54,7 +54,7 @@ export class GroqProvider implements AIProvider {
 			throw new Error('GROQ_API_KEY is not set');
 		}
 
-		const model = options.model || env.DEFAULT_AI_MODEL || 'llama3-70b-8192';
+		const model = options.model || env.DEFAULT_AI_MODEL || 'llama-3.3-70b-versatile';
 
 		const startTime = Date.now();
 		let response: Response;
@@ -107,7 +107,7 @@ export class GroqProvider implements AIProvider {
 			throw new Error('GROQ_API_KEY is not set');
 		}
 
-		const model = options.model || env.DEFAULT_AI_MODEL || 'llama3-70b-8192';
+		const model = options.model || env.DEFAULT_AI_MODEL || 'llama-3.3-70b-versatile';
 
 		const startTime = Date.now();
 		let response: Response;

@@ -159,7 +159,7 @@ describe('AI Streaming Providers', () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
 
 		const stream = await provider.generateChat({
-			model: 'llama3-70b-8192',
+			model: 'llama-3.3-70b-versatile',
 			messages: [{ role: 'user', content: 'Hi' }],
 			stream: true
 		});
@@ -173,7 +173,7 @@ describe('AI Streaming Providers', () => {
 				expect(value).toEqual({
 					content: 'Hello Groq',
 					provider: 'groq',
-					model: 'llama3-70b-8192',
+					model: 'llama-3.3-70b-versatile',
 					inputTokens: 12,
 					outputTokens: 6,
 					latencyMs: expect.any(Number)
@@ -201,7 +201,7 @@ describe('AI Streaming Providers', () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
 
 		const result = await provider.generateChat({
-			model: 'llama3-70b-8192',
+			model: 'llama-3.3-70b-versatile',
 			messages: [{ role: 'user', content: 'Hi' }],
 			stream: false
 		});
@@ -209,7 +209,7 @@ describe('AI Streaming Providers', () => {
 		expect(result).toEqual({
 			content: 'Hello standard Groq',
 			provider: 'groq',
-			model: 'llama3-70b-8192',
+			model: 'llama-3.3-70b-versatile',
 			inputTokens: 15,
 			outputTokens: 7,
 			latencyMs: expect.any(Number)
@@ -230,7 +230,7 @@ describe('AI Streaming Providers', () => {
 
 		await expect(
 			provider.generateChat({
-				model: 'llama3-70b-8192',
+				model: 'llama-3.3-70b-versatile',
 				messages: [{ role: 'user', content: 'Hi' }],
 				stream: false
 			})

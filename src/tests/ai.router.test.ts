@@ -85,7 +85,7 @@ describe('AI Router Routing Rules', () => {
 			const mockResult = {
 				content: 'Mocked Groq reply',
 				provider: 'groq' as const,
-				model: 'llama3-70b-8192'
+				model: 'llama-3.3-70b-versatile'
 			};
 			vi.spyOn(customRouter['providers'].groq, 'generateChat').mockResolvedValue(mockResult);
 
@@ -114,7 +114,7 @@ describe('AI Router Routing Rules', () => {
 		const mockResult = {
 			content: 'Mocked Groq reply',
 			provider: 'groq' as const,
-			model: 'llama3-70b-8192'
+			model: 'llama-3.3-70b-versatile'
 		};
 		vi.spyOn(customRouter['providers'].groq, 'generateChat').mockResolvedValue(mockResult);
 

@@ -208,6 +208,18 @@ export class ChatStore {
 			};
 			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
 
+			const updateMessage = (updates: Partial<ChatMessage>) => {
+				const currentMsgs = this.messages[this.activeId!] || [];
+				const idx = currentMsgs.findIndex((m) => m.id === assistantMsgId);
+				if (idx !== -1) {
+					currentMsgs[idx] = {
+						...currentMsgs[idx],
+						...updates
+					};
+					this.messages[this.activeId!] = [...currentMsgs];
+				}
+			};
+
 			const decoder = new TextDecoder();
 			let buffer = '';
 
@@ -232,22 +244,32 @@ export class ChatStore {
 							try {
 								const data = JSON.parse(jsonStr);
 								if (data.type === 'start') {
+									let emotionLabel = 'neutral';
+									let moodScore = 0;
 									if (data.emotion) {
-										assistantMsg.emotionLabel = data.emotion.primaryEmotion || 'neutral';
-										assistantMsg.moodScore = data.emotion.moodScore ?? 0;
+										emotionLabel = data.emotion.primaryEmotion || 'neutral';
+										moodScore = data.emotion.moodScore ?? 0;
 										this.updateAvatarFromEmotion(data.emotion.primaryEmotion);
 									}
+									updateMessage({ emotionLabel, moodScore });
 									characterStore.activeCharacter.avatarState = 'speaking';
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'token') {
-									assistantMsg.content += data.content;
-									this.messages[this.activeId!] = [...this.messages[this.activeId!]];
+									const currentMsgs = this.messages[this.activeId!] || [];
+									const msg = currentMsgs.find((m) => m.id === assistantMsgId);
+									const currentContent = msg ? msg.content : '';
+									updateMessage({ content: currentContent + data.content });
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
+									const currentMsgs = this.messages[this.activeId!] || [];
+									const msg = currentMsgs.find((m) => m.id === assistantMsgId);
+									const finalEmotionLabel = msg?.emotionLabel;
+									const finalMoodScore = msg?.moodScore;
+
 									const conv = this.conversations.find((c) => c.id === this.activeId);
 									if (conv) {
-										conv.lastEmotionLabel = assistantMsg.emotionLabel;
-										conv.lastMoodScore = assistantMsg.moodScore;
+										conv.lastEmotionLabel = finalEmotionLabel;
+										conv.lastMoodScore = finalMoodScore;
 										conv.updatedAt = new Date().toISOString();
 									}
 									uiStore.setMoonState('idle');
@@ -266,8 +288,10 @@ export class ChatStore {
 					try {
 						const data = JSON.parse(jsonStr);
 						if (data.type === 'token') {
-							assistantMsg.content += data.content;
-							this.messages[this.activeId!] = [...this.messages[this.activeId!]];
+							const currentMsgs = this.messages[this.activeId!] || [];
+							const msg = currentMsgs.find((m) => m.id === assistantMsgId);
+							const currentContent = msg ? msg.content : '';
+							updateMessage({ content: currentContent + data.content });
 						}
 					} catch (e) {
 						// Ignore

@@ -51,7 +51,7 @@ export class SettingsStore {
 		} else if (provider === 'claude') {
 			this.model = 'claude-3-5-sonnet-latest';
 		} else {
-			this.model = 'llama3-70b-8192';
+			this.model = 'llama-3.3-70b-versatile';
 		}
 	}
 

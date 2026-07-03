@@ -115,9 +115,8 @@ export class AIRouter {
 			if (provider.name === config.provider) {
 				mergedOptions.model = config.model;
 			} else if (provider.name === 'groq') {
-				// Use DEFAULT_AI_MODEL if DEFAULT_AI_PROVIDER is groq, otherwise default llama
 				mergedOptions.model =
-					(env.DEFAULT_AI_PROVIDER === 'groq' && env.DEFAULT_AI_MODEL) || 'llama3-70b-8192';
+					(env.DEFAULT_AI_PROVIDER === 'groq' && env.DEFAULT_AI_MODEL) || 'llama-3.3-70b-versatile';
 			} else if (provider.name === 'deepseek') {
 				// Use DEFAULT_AI_MODEL if DEFAULT_AI_PROVIDER is deepseek, otherwise default deepseek-chat
 				mergedOptions.model =
