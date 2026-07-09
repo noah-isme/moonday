@@ -10,6 +10,14 @@ export const users = pgTable('users', {
 	updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
 
+export const userProfiles = pgTable('user_profiles', {
+	id: uuid('id').references(() => users.id, { onDelete: 'cascade' }).primaryKey(),
+	name: text('name').notNull(),
+	bio: text('bio'),
+	occupation: text('occupation'),
+	communicationStyle: jsonb('communication_style').$type<Record<string, any>>().default({}).notNull()
+});
+
 export const characterProfiles = pgTable('character_profiles', {
 	id: uuid('id').defaultRandom().primaryKey(),
 	name: text('name').notNull(),

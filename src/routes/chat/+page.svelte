@@ -302,9 +302,13 @@
 
 		<!-- Scrollable Messages Container -->
 		<div bind:this={scrollContainer} class="flex-1 overflow-y-auto px-1 scroll-smooth">
-			{#each messages as msg (msg.id)}
+			{#each messages as msg, index (msg.id)}
 				{#if msg.role !== 'system'}
-					<ChatBubble message={msg} characterName={activeCompanionName} />
+					<ChatBubble
+						message={msg}
+						characterName={activeCompanionName}
+						isLastAssistant={index === messages.length - 1 && msg.role === 'assistant'}
+					/>
 				{/if}
 			{:else}
 				<div

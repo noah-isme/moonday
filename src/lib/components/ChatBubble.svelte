@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { ChatMessage } from '$lib/stores/chat.svelte';
+	import { chatStore } from '$lib/stores/chat.svelte';
 	import { MOODS } from '$lib/stores/mood.svelte';
 	import { fade } from 'svelte/transition';
 	import { marked } from 'marked';
 
-	let { message, characterName = 'MOONDAY' } = $props<{
+	let { message, characterName = 'MOONDAY', isLastAssistant = false } = $props<{
 		message: ChatMessage;
 		characterName?: string;
+		isLastAssistant?: boolean;
 	}>();
 
 	// Configure marked options
@@ -83,7 +85,7 @@
 				class="px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all duration-300 shadow-lg {message.role ===
 				'user'
 					? 'bg-violet-glow text-deep-navy font-medium rounded-tr-none'
-					: 'bg-soft-dark-blue text-soft-white border border-slate-gray/10 rounded-tl-none'}"
+					: 'bg-soft-dark-blue text-soft-white border border-slate-gray/10 rounded-tl-none'} {isLastAssistant && (chatStore.isThinking || chatStore.isStreaming) ? 'animate-pulse opacity-80' : ''}"
 			>
 				{#if message.role === 'assistant'}
 					<div class="markdown-content">
@@ -94,16 +96,43 @@
 				{/if}
 			</div>
 
-			<!-- Emotion / Mood Feedback Badge for Assistant Replies -->
-			{#if emotionDetails}
-				<div class="flex px-1 mt-1 justify-start">
-					<span
-						class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full border border-current font-medium transition-all duration-300 {emotionDetails.color} opacity-80"
-						title="Mood classification score: {message.moodScore}"
-					>
-						<span>{emotionDetails.emoji}</span>
-						<span class="capitalize">{emotionDetails.label}</span>
-					</span>
+			<!-- Emotion / Mood Feedback Badge and Reroll Button for Assistant Replies -->
+			{#if emotionDetails || (message.role === 'assistant' && isLastAssistant)}
+				<div class="flex px-1 mt-1 justify-start items-center gap-2">
+					{#if emotionDetails}
+						<span
+							class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full border border-current font-medium transition-all duration-300 {emotionDetails.color} opacity-80"
+							title="Mood classification score: {message.moodScore}"
+						>
+							<span>{emotionDetails.emoji}</span>
+							<span class="capitalize">{emotionDetails.label}</span>
+						</span>
+					{/if}
+
+					{#if message.role === 'assistant' && isLastAssistant}
+						<button
+							onclick={() => chatStore.rerollLastMessage()}
+							disabled={chatStore.isThinking || chatStore.isStreaming}
+							class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50"
+							title="Reroll last message"
+							aria-label="Reroll last message"
+						>
+							<svg
+								class="w-3.5 h-3.5 {chatStore.isThinking || chatStore.isStreaming ? 'animate-spin' : ''}"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="2"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+								/>
+							</svg>
+						</button>
+					{/if}
 				</div>
 			{/if}
 		</div>

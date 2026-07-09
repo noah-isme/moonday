@@ -1,5 +1,5 @@
-import { TraitSchema, compileTraitsToDirectives } from './compiler';
-export { TraitSchema, compileTraitsToDirectives } from './compiler';
+import { TraitSchema, compileTraitsToDirectives, UserProfileSchema, compileUserPersona } from './compiler';
+export { TraitSchema, compileTraitsToDirectives, UserProfileSchema, compileUserPersona } from './compiler';
 
 export interface CharacterProfile {
 	id: string;
@@ -64,9 +64,14 @@ Your style should feel like a calm moonlit navigator, not a corporate assistant.
 export function buildSystemPrompt(
 	character: CharacterProfile = DEFAULT_CHARACTER,
 	memoriesContext: string = '',
-	currentDate: string = new Date().toISOString()
+	currentDate: string = new Date().toISOString(),
+	userPersona: string = ''
 ): string {
-	let prompt = BASE_SYSTEM_PROMPT;
+	let prompt = '';
+	if (userPersona) {
+		prompt += `${userPersona}\n\n`;
+	}
+	prompt += BASE_SYSTEM_PROMPT;
 
 	// Compiled Traits
 	const validatedTraits = TraitSchema.parse(character.traits || {});

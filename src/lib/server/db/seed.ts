@@ -272,6 +272,32 @@ export async function seed() {
 				.where(eq(schema.characterProfiles.name, char.name));
 		}
 	}
+
+	console.log('Seeding default user...');
+	const existingUsers = await db.select().from(schema.users).limit(1);
+	if (existingUsers.length === 0) {
+		console.log('Creating default user: Noah');
+		const [insertedUser] = await db
+			.insert(schema.users)
+			.values({
+				displayName: 'Noah'
+			})
+			.returning({ id: schema.users.id });
+
+		console.log('Creating default user profile for Noah');
+		await db.insert(schema.userProfiles).values({
+			id: insertedUser.id,
+			name: 'Noah',
+			bio: 'Senior Software Architect',
+			occupation: 'Software Architect',
+			communicationStyle: {
+				formality: 'to-the-point',
+				tone: 'straightforward',
+				sarcasmLevel: 'none'
+			}
+		});
+	}
+
 	console.log('Seeding complete.');
 	// Close connections
 	await client.end();

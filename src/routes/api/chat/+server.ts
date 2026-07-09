@@ -3,18 +3,19 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import {
 	users,
+	userProfiles,
 	characterProfiles,
 	conversations,
 	messages,
 	aiProviderLogs
 } from '$lib/server/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and, desc } from 'drizzle-orm';
 import { aiRouter } from '$lib/server/ai/router';
 import { classifyEmotion } from '$lib/server/emotion/classify';
 import { retrieveMemories } from '$lib/server/memory/retrieve';
 import { extractMemories } from '$lib/server/memory/extract';
 import { saveMemory } from '$lib/server/memory/save';
-import { buildSystemPrompt } from '$lib/server/prompts';
+import { buildSystemPrompt, compileUserPersona } from '$lib/server/prompts';
 import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import { checkRateLimit } from '$lib/server/rateLimiter';
@@ -171,7 +172,8 @@ const chatRequestSchema = z.object({
 	message: z.string().trim().min(1, 'Message cannot be empty').max(5000, 'Message is too long'),
 	characterId: z.string().trim().min(1).optional(),
 	provider: z.enum(['deepseek', 'claude', 'groq']).optional(),
-	stream: z.boolean().optional()
+	stream: z.boolean().optional(),
+	reroll: z.boolean().optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -222,7 +224,7 @@ export const POST: RequestHandler = async (event) => {
 
 		// 2. Validate with Zod
 		const validated = chatRequestSchema.parse(body);
-		const { conversationId, message, characterId, provider: requestProvider, stream } = validated;
+		const { conversationId, message, characterId, provider: requestProvider, stream, reroll } = validated;
 
 		// 3. Rate Limit Check
 		let ip = 'unknown';
@@ -277,30 +279,57 @@ export const POST: RequestHandler = async (event) => {
 			conversation = newConv;
 		}
 
-		// 7. Classify user message emotion
-		const emotionAnalysis = await classifyEmotion(message);
+		// 7. Classify user message emotion or retrieve last user message for reroll
+		let userMessageRecord;
+		let emotionAnalysis;
 
-		// 8. Save user message to database
-		const [userMessageRecord] = await db
-			.insert(messages)
-			.values({
-				conversationId: conversation.id,
-				role: 'user',
-				content: message,
-				emotionLabel: emotionAnalysis.primaryEmotion,
-				moodScore: emotionAnalysis.moodScore
-			})
-			.returning();
+		if (reroll) {
+			const [lastUserMessage] = await db
+				.select()
+				.from(messages)
+				.where(and(eq(messages.conversationId, conversation.id), eq(messages.role, 'user')))
+				.orderBy(desc(messages.createdAt))
+				.limit(1);
 
-		// Update conversation with latest state
-		await db
-			.update(conversations)
-			.set({
-				lastEmotionLabel: emotionAnalysis.primaryEmotion,
-				lastMoodScore: emotionAnalysis.moodScore,
-				updatedAt: new Date()
-			})
-			.where(eq(conversations.id, conversation.id));
+			if (!lastUserMessage) {
+				return json(
+					{ error: { code: 'NOT_FOUND', message: 'No user message to reroll' } },
+					{ status: 404 }
+				);
+			}
+			userMessageRecord = lastUserMessage;
+			emotionAnalysis = {
+				primaryEmotion: lastUserMessage.emotionLabel || 'neutral',
+				moodScore: lastUserMessage.moodScore !== null && lastUserMessage.moodScore !== undefined ? lastUserMessage.moodScore : 0,
+				shouldStoreMemory: false
+			};
+		} else {
+			// 7. Classify user message emotion
+			emotionAnalysis = await classifyEmotion(message);
+
+			// 8. Save user message to database
+			const [newMsg] = await db
+				.insert(messages)
+				.values({
+					conversationId: conversation.id,
+					role: 'user',
+					content: message,
+					emotionLabel: emotionAnalysis.primaryEmotion,
+					moodScore: emotionAnalysis.moodScore
+				})
+				.returning();
+			userMessageRecord = newMsg;
+
+			// Update conversation with latest state
+			await db
+				.update(conversations)
+				.set({
+					lastEmotionLabel: emotionAnalysis.primaryEmotion,
+					lastMoodScore: emotionAnalysis.moodScore,
+					updatedAt: new Date()
+				})
+				.where(eq(conversations.id, conversation.id));
+		}
 
 		// 9. Retrieve relevant memories (semantic search)
 		let memoriesContext = '';
@@ -316,13 +345,43 @@ export const POST: RequestHandler = async (event) => {
 			.orderBy(asc(messages.createdAt))
 			.limit(20);
 
+		let history = [...historyRecords];
+		if (reroll) {
+			// Find the last assistant message in history records and remove it
+			for (let i = history.length - 1; i >= 0; i--) {
+				if (history[i].role === 'assistant') {
+					history.splice(i, 1);
+					break;
+				}
+			}
+		}
+
 		// 11. Build prompt with memories and system prompt
-		const systemPrompt = buildSystemPrompt(character, memoriesContext, new Date().toISOString());
+		let userPersona = '';
+		try {
+			const [profile] = await db
+				.select()
+				.from(userProfiles)
+				.where(eq(userProfiles.id, user.id))
+				.limit(1);
+			if (profile) {
+				userPersona = compileUserPersona(profile);
+			}
+		} catch (err) {
+			console.error('Error fetching/compiling user profile:', err);
+		}
+
+		const systemPrompt = buildSystemPrompt(
+			character,
+			memoriesContext,
+			new Date().toISOString(),
+			userPersona
+		);
 
 		// Construct chat messages list
 		const chatMessages = [
 			{ role: 'system' as const, content: systemPrompt },
-			...historyRecords.map((m) => ({
+			...history.map((m) => ({
 				role: m.role as 'system' | 'user' | 'assistant',
 				content: m.content
 			}))
@@ -394,14 +453,46 @@ export const POST: RequestHandler = async (event) => {
 							requestType: 'daily_chat'
 						});
 
-						// Save assistant message
-						await db.insert(messages).values({
-							conversationId: conversation.id,
-							role: 'assistant',
-							content: fullContent,
-							provider: providerVal,
-							model: modelVal
-						});
+						if (reroll) {
+							await db.transaction(async (tx) => {
+								const [lastAssistantMessage] = await tx
+									.select()
+									.from(messages)
+									.where(and(eq(messages.conversationId, conversation.id), eq(messages.role, 'assistant')))
+									.orderBy(desc(messages.createdAt))
+									.limit(1);
+
+								if (lastAssistantMessage) {
+									await tx.delete(messages).where(eq(messages.id, lastAssistantMessage.id));
+								}
+
+								await tx.insert(messages).values({
+									conversationId: conversation.id,
+									role: 'assistant',
+									content: fullContent,
+									provider: providerVal,
+									model: modelVal
+								});
+
+								await tx
+									.update(conversations)
+									.set({
+										lastEmotionLabel: userMessageRecord.emotionLabel,
+										lastMoodScore: userMessageRecord.moodScore,
+										updatedAt: new Date()
+									})
+									.where(eq(conversations.id, conversation.id));
+							});
+						} else {
+							// Save assistant message
+							await db.insert(messages).values({
+								conversationId: conversation.id,
+								role: 'assistant',
+								content: fullContent,
+								provider: providerVal,
+								model: modelVal
+							});
+						}
 
 						// Run memory extraction if criteria met
 						let savedMemory = false;
@@ -498,14 +589,46 @@ export const POST: RequestHandler = async (event) => {
 				requestType: 'daily_chat'
 			});
 
-			// Save assistant message
-			await db.insert(messages).values({
-				conversationId: conversation.id,
-				role: 'assistant',
-				content: chatResult.content,
-				provider: chatResult.provider,
-				model: chatResult.model
-			});
+			if (reroll) {
+				await db.transaction(async (tx) => {
+					const [lastAssistantMessage] = await tx
+						.select()
+						.from(messages)
+						.where(and(eq(messages.conversationId, conversation.id), eq(messages.role, 'assistant')))
+						.orderBy(desc(messages.createdAt))
+						.limit(1);
+
+					if (lastAssistantMessage) {
+						await tx.delete(messages).where(eq(messages.id, lastAssistantMessage.id));
+					}
+
+					await tx.insert(messages).values({
+						conversationId: conversation.id,
+						role: 'assistant',
+						content: chatResult.content,
+						provider: chatResult.provider,
+						model: chatResult.model
+					});
+
+					await tx
+						.update(conversations)
+						.set({
+							lastEmotionLabel: userMessageRecord.emotionLabel,
+							lastMoodScore: userMessageRecord.moodScore,
+							updatedAt: new Date()
+						})
+						.where(eq(conversations.id, conversation.id));
+				});
+			} else {
+				// Save assistant message
+				await db.insert(messages).values({
+					conversationId: conversation.id,
+					role: 'assistant',
+					content: chatResult.content,
+					provider: chatResult.provider,
+					model: chatResult.model
+				});
+			}
 
 			// Run memory extraction if criteria met
 			let savedMemory = false;

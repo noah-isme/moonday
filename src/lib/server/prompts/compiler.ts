@@ -48,3 +48,46 @@ export function compileTraitsToDirectives(traits: z.infer<typeof TraitSchema>): 
 
 	return directives.join(' ');
 }
+
+export const UserProfileSchema = z.object({
+	id: z.string().uuid().optional(),
+	name: z.string(),
+	bio: z.string().nullable().optional(),
+	occupation: z.string().nullable().optional(),
+	communicationStyle: z.record(z.any()).default({})
+});
+
+export function compileUserPersona(profile: unknown): string {
+	const parsed = UserProfileSchema.parse(profile);
+	let description = `The user is ${parsed.name}`;
+	
+	if (parsed.occupation && parsed.bio) {
+		description += `, a ${parsed.occupation} (${parsed.bio})`;
+	} else if (parsed.occupation) {
+		description += `, a ${parsed.occupation}`;
+	} else if (parsed.bio) {
+		description += `, ${parsed.bio}`;
+	}
+
+	const style = parsed.communicationStyle;
+	const values: string[] = [];
+	if (style.formality) {
+		values.push(`${style.formality}`);
+	}
+	if (style.tone) {
+		values.push(`${style.tone}`);
+	}
+	if (style.sarcasmLevel && style.sarcasmLevel !== 'none') {
+		values.push(`${style.sarcasmLevel} sarcasm`);
+	}
+
+	if (values.length > 0) {
+		const valuesText = values.length === 1 
+			? `${values[0]}` 
+			: values.slice(0, -1).join(', ') + ' and ' + values[values.length - 1];
+		description += ` who values ${valuesText} communication`;
+	}
+
+	description += '.';
+	return description;
+}

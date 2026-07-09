@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TraitSchema, compileTraitsToDirectives } from '../lib/server/prompts';
+import { TraitSchema, compileTraitsToDirectives, compileUserPersona } from '../lib/server/prompts';
 import { ZodError } from 'zod';
 
 describe('Prompt Traits Compiler', () => {
@@ -127,6 +127,42 @@ describe('Prompt Traits Compiler', () => {
 
 			const directives = compileTraitsToDirectives(traits);
 			expect(directives).toBe('');
+		});
+	});
+
+	describe('compileUserPersona', () => {
+		it('should compile complete user profile to narrative prompt description', () => {
+			const profile = {
+				name: 'Noah',
+				bio: 'Senior Software Architect',
+				occupation: 'Software Architect',
+				communicationStyle: {
+					formality: 'to-the-point',
+					tone: 'straightforward',
+					sarcasmLevel: 'none'
+				}
+			};
+
+			const compiled = compileUserPersona(profile);
+			expect(compiled).toBe(
+				'The user is Noah, a Software Architect (Senior Software Architect) who values to-the-point and straightforward communication.'
+			);
+		});
+
+		it('should handle partial user profile without communication style', () => {
+			const profile = {
+				name: 'Alice',
+				bio: 'Software Engineer'
+			};
+
+			const compiled = compileUserPersona(profile);
+			expect(compiled).toBe('The user is Alice, Software Engineer.');
+		});
+
+		it('should validate with Zod and fail on invalid profile', () => {
+			expect(() => {
+				compileUserPersona({ bio: 'No name provided' });
+			}).toThrow(ZodError);
 		});
 	});
 });
