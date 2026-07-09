@@ -112,13 +112,13 @@
 					{#if message.role === 'assistant' && isLastAssistant}
 						<button
 							onclick={() => chatStore.rerollLastMessage()}
-							disabled={chatStore.isThinking || chatStore.isStreaming}
-							class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50"
+							disabled={chatStore.isStreaming || chatStore.isThinking || chatStore.isRerolling}
+							class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
 							title="Reroll last message"
 							aria-label="Reroll last message"
 						>
 							<svg
-								class="w-3.5 h-3.5 {chatStore.isThinking || chatStore.isStreaming ? 'animate-spin' : ''}"
+								class="w-3.5 h-3.5 {chatStore.isThinking || chatStore.isStreaming || chatStore.isRerolling ? 'animate-spin' : ''}"
 								xmlns="http://www.w3.org/2000/svg"
 								fill="none"
 								viewBox="0 0 24 24"

@@ -54,7 +54,7 @@ export const UserProfileSchema = z.object({
 	name: z.string(),
 	bio: z.string().nullable().optional(),
 	occupation: z.string().nullable().optional(),
-	communicationStyle: z.record(z.any()).default({})
+	communicationStyle: z.record(z.string(), z.any()).default({})
 });
 
 export function compileUserPersona(profile: unknown): string {

@@ -1,8 +1,16 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import CharacterSelector from '$lib/components/CharacterSelector.svelte';
 	import ProviderSelector from '$lib/components/ProviderSelector.svelte';
+
+	let { data, form } = $props<{
+		data: { profile: any };
+		form: { success?: boolean; error?: any; values?: any } | null;
+	}>();
+
+	let isSubmitting = $state(false);
 
 	function handleClearData() {
 		const verified = confirm(
@@ -22,6 +30,129 @@
 			Configure companion personality, model routing, voice parameters, and memory privacy.
 		</p>
 	</div>
+
+	<!-- User Profile Section -->
+	<section
+		class="bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-3xl p-5 md:p-6 space-y-4 shadow-xl"
+	>
+		<h2 class="text-sm font-bold text-soft-white uppercase tracking-wider">
+			User Profile
+		</h2>
+		<p class="text-xs text-slate-gray">
+			Customize your profile details and specify your communication style preferences.
+		</p>
+
+		{#if form?.success}
+			<div class="p-3 bg-calm-green/10 border border-calm-green/20 rounded-xl text-xs text-calm-green flex items-center gap-2">
+				<span>✓</span>
+				<span>Profile updated successfully!</span>
+			</div>
+		{/if}
+
+		{#if form?.error?._form}
+			<div class="p-3 bg-soft-red/10 border border-soft-red/20 rounded-xl text-xs text-soft-red flex items-center gap-2">
+				<span>⚠️</span>
+				<span>{form.error._form}</span>
+			</div>
+		{/if}
+
+		<form
+			method="POST"
+			use:enhance={() => {
+				isSubmitting = true;
+				return async ({ update }) => {
+					isSubmitting = false;
+					await update();
+				};
+			}}
+			class="space-y-4 pt-2"
+		>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- Name Field -->
+				<div class="flex flex-col gap-1.5">
+					<label for="name" class="text-xs font-semibold text-pale-silver">User Name</label>
+					<input
+						type="text"
+						id="name"
+						name="name"
+						disabled={isSubmitting}
+						value={form?.values?.name ?? data.profile.name}
+						class="w-full p-3 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all"
+						placeholder="Noah"
+					/>
+					{#if form?.error?.name}
+						<span class="text-[10px] text-soft-red font-semibold">{form.error.name[0]}</span>
+					{/if}
+				</div>
+
+				<!-- Occupation Field -->
+				<div class="flex flex-col gap-1.5">
+					<label for="occupation" class="text-xs font-semibold text-pale-silver">Occupation</label>
+					<input
+						type="text"
+						id="occupation"
+						name="occupation"
+						disabled={isSubmitting}
+						value={form?.values?.occupation ?? data.profile.occupation ?? ''}
+						class="w-full p-3 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all"
+						placeholder="Software Architect"
+					/>
+					{#if form?.error?.occupation}
+						<span class="text-[10px] text-soft-red font-semibold">{form.error.occupation[0]}</span>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Bio Field -->
+			<div class="flex flex-col gap-1.5">
+				<label for="bio" class="text-xs font-semibold text-pale-silver">Bio</label>
+				<textarea
+					id="bio"
+					name="bio"
+					rows="3"
+					disabled={isSubmitting}
+					value={form?.values?.bio ?? data.profile.bio ?? ''}
+					class="w-full p-3 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all resize-none"
+					placeholder="Senior Software Architect..."
+				></textarea>
+				{#if form?.error?.bio}
+					<span class="text-[10px] text-soft-red font-semibold">{form.error.bio[0]}</span>
+				{/if}
+			</div>
+
+			<!-- Communication Style Field -->
+			<div class="flex flex-col gap-1.5">
+				<label for="communicationStyle" class="text-xs font-semibold text-pale-silver">Communication Style (JSON)</label>
+				<textarea
+					id="communicationStyle"
+					name="communicationStyle"
+					rows="4"
+					disabled={isSubmitting}
+					value={form?.values?.communicationStyle ?? JSON.stringify(data.profile.communicationStyle, null, 2)}
+					class="w-full p-3 text-xs font-mono bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all resize-y"
+					placeholder={'{ "formality": "to-the-point", "tone": "straightforward", "sarcasmLevel": "none" }'}
+				></textarea>
+				{#if form?.error?.communicationStyle}
+					<span class="text-[10px] text-soft-red font-semibold">{form.error.communicationStyle[0]}</span>
+				{/if}
+			</div>
+
+			<!-- Submit Button -->
+			<div class="pt-2">
+				<button
+					type="submit"
+					disabled={isSubmitting}
+					class="py-2.5 px-4 rounded-xl border border-violet-glow/20 text-violet-glow bg-violet-glow/5 hover:bg-violet-glow/15 disabled:bg-slate-gray/10 disabled:text-slate-gray disabled:border-slate-gray/15 text-xs font-semibold tracking-wide transition-all duration-300 cursor-pointer flex items-center gap-2"
+				>
+					{#if isSubmitting}
+						<span>Saving...</span>
+					{:else}
+						<span>Save Profile Settings</span>
+					{/if}
+				</button>
+			</div>
+		</form>
+	</section>
 
 	<!-- Companion Profile Selector -->
 	<section

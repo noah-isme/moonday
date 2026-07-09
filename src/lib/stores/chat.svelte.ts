@@ -37,6 +37,7 @@ export class ChatStore {
 	messages = $state<Record<string, ChatMessage[]>>({}); // Indexed by conversation ID
 	isThinking = $state<boolean>(false);
 	isStreaming = $state<boolean>(false);
+	isRerolling = $state<boolean>(false);
 	error = $state<string | null>(null);
 
 	activeConversation = $derived.by(() => {
@@ -346,6 +347,7 @@ export class ChatStore {
 	}
 
 	async rerollLastMessage() {
+		if (this.isStreaming || this.isThinking || this.isRerolling) return;
 		if (!this.activeId) return;
 
 		const currentMsgs = this.messages[this.activeId] || [];
@@ -374,6 +376,7 @@ export class ChatStore {
 
 		if (!userMsg) return;
 
+		this.isRerolling = true;
 		this.isThinking = true;
 		this.error = null;
 
@@ -515,6 +518,7 @@ export class ChatStore {
 			this.error = err instanceof Error ? err.message : 'Streaming interrupted.';
 		} finally {
 			this.isThinking = false;
+			this.isRerolling = false;
 			this.saveToLocalStorage();
 		}
 	}
