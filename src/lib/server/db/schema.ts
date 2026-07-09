@@ -102,7 +102,7 @@ export const memories = pgTable('memories', {
 		onDelete: 'set null'
 	}),
 	sourceMessageId: uuid('source_message_id').references(() => messages.id, {
-		onDelete: 'set null'
+		onDelete: 'cascade'
 	}),
 	lastReferencedAt: timestamp('last_referenced_at'),
 	isSensitive: boolean('is_sensitive').default(false).notNull(),

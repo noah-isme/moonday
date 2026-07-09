@@ -7,9 +7,10 @@ import {
 	characterProfiles,
 	conversations,
 	messages,
-	aiProviderLogs
+	aiProviderLogs,
+	memories
 } from '$lib/server/db/schema';
-import { eq, asc, and, desc, gt } from 'drizzle-orm';
+import { eq, asc, and, desc, gt, inArray } from 'drizzle-orm';
 import { aiRouter } from '$lib/server/ai/router';
 import { classifyEmotion } from '$lib/server/emotion/classify';
 import { retrieveMemories } from '$lib/server/memory/retrieve';
@@ -316,6 +317,23 @@ export const POST: RequestHandler = async (event) => {
 					.returning();
 				
 				userMessageRecord = updatedMsg;
+
+				const messagesToDelete = await tx
+					.select({ id: messages.id })
+					.from(messages)
+					.where(
+						and(
+							eq(messages.conversationId, conversation.id),
+							gt(messages.createdAt, editedMessage.createdAt)
+						)
+					);
+				const deletedMessageIds = messagesToDelete.map((m) => m.id);
+
+				if (deletedMessageIds.length > 0) {
+					await tx
+						.delete(memories)
+						.where(inArray(memories.sourceMessageId, deletedMessageIds));
+				}
 
 				// Delete all messages in the conversation created after createdAt of the edited message
 				await tx
