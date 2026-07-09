@@ -111,7 +111,7 @@ export async function deleteMemory(id: string) {
 	return result || null;
 }
 
-export async function searchMemories(userId: string, queryEmbedding: number[], limitVal = 5) {
+export async function searchMemories(userId: string, queryEmbedding: number[], limitVal = 20) {
 	const embeddingString = `[${queryEmbedding.join(',')}]`;
 	const distance = sql<number>`${memoryEmbeddings.embedding} <=> ${embeddingString}::vector`;
 

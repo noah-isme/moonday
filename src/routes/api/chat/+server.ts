@@ -303,10 +303,9 @@ export const POST: RequestHandler = async (event) => {
 			.where(eq(conversations.id, conversation.id));
 
 		// 9. Retrieve relevant memories (semantic search)
-		let memoriesText: string[] = [];
+		let memoriesContext = '';
 		if (env.ENABLE_VECTOR_SEARCH !== 'false') {
-			const retrieved = await retrieveMemories(user.id, message, 5);
-			memoriesText = retrieved.map((m) => m.content);
+			memoriesContext = await retrieveMemories(user.id, message);
 		}
 
 		// 10. Load recent conversation history (up to last 20 messages)
@@ -318,7 +317,7 @@ export const POST: RequestHandler = async (event) => {
 			.limit(20);
 
 		// 11. Build prompt with memories and system prompt
-		const systemPrompt = buildSystemPrompt(character, memoriesText, new Date().toISOString());
+		const systemPrompt = buildSystemPrompt(character, memoriesContext, new Date().toISOString());
 
 		// Construct chat messages list
 		const chatMessages = [

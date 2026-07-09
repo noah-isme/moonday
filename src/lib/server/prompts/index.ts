@@ -63,7 +63,7 @@ Your style should feel like a calm moonlit navigator, not a corporate assistant.
 
 export function buildSystemPrompt(
 	character: CharacterProfile = DEFAULT_CHARACTER,
-	memories: string[] = [],
+	memoriesContext: string = '',
 	currentDate: string = new Date().toISOString()
 ): string {
 	let prompt = BASE_SYSTEM_PROMPT;
@@ -86,8 +86,8 @@ export function buildSystemPrompt(
 	}
 
 	// Context/Memories (RAG memories)
-	if (memories.length > 0) {
-		prompt += `\n\n[Relevant Memories]\n${memories.map((m) => `- ${m}`).join('\n')}`;
+	if (memoriesContext) {
+		prompt += `\n\n[Relevant Memories]\n${memoriesContext}`;
 	}
 
 	// Contextual Information
@@ -95,3 +95,4 @@ export function buildSystemPrompt(
 
 	return prompt;
 }
+
