@@ -11,6 +11,23 @@
 		isLastAssistant?: boolean;
 	}>();
 
+	let isEditing = $state(false);
+	let editedContent = $state('');
+
+	function startEditing() {
+		isEditing = true;
+		editedContent = message.content;
+	}
+
+	function cancelEditing() {
+		isEditing = false;
+	}
+
+	function saveEdit() {
+		isEditing = false;
+		chatStore.editMessage(message.id, editedContent);
+	}
+
 	// Configure marked options
 	marked.setOptions({
 		breaks: true,
@@ -92,7 +109,32 @@
 						{@html parsedContent}
 					</div>
 				{:else}
-					<p class="whitespace-pre-wrap">{message.content}</p>
+					{#if isEditing}
+						<div class="flex flex-col gap-2 w-full min-w-[200px] md:min-w-[300px]">
+							<textarea
+								bind:value={editedContent}
+								class="w-full p-2 text-sm text-deep-navy bg-white/40 rounded-md border border-deep-navy/20 focus:outline-none focus:border-deep-navy/50 resize-y"
+								rows="3"
+							></textarea>
+							<div class="flex justify-end gap-2 text-xs">
+								<button
+									onclick={cancelEditing}
+									class="px-2 py-1 rounded bg-deep-navy/10 text-deep-navy hover:bg-deep-navy/20 transition-colors font-medium"
+								>
+									Cancel
+								</button>
+								<button
+									onclick={saveEdit}
+									disabled={!editedContent.trim()}
+									class="px-2 py-1 rounded bg-deep-navy text-violet-glow hover:bg-deep-navy/90 transition-colors font-medium disabled:opacity-50"
+								>
+									Save
+								</button>
+							</div>
+						</div>
+					{:else}
+						<p class="whitespace-pre-wrap">{message.content}</p>
+					{/if}
 				{/if}
 			</div>
 
@@ -133,6 +175,19 @@
 							</svg>
 						</button>
 					{/if}
+				</div>
+			{/if}
+
+			{#if message.role === 'user' && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}
+				<div class="flex px-1 mt-1 justify-end items-center gap-2">
+					<button
+						onclick={startEditing}
+						class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 text-xs"
+						title="Edit message"
+						aria-label="Edit message"
+					>
+						✏️
+					</button>
 				</div>
 			{/if}
 		</div>

@@ -346,6 +346,173 @@ export class ChatStore {
 		}
 	}
 
+	async editMessage(messageId: string, newContent: string) {
+		if (!newContent.trim() || !this.activeId) return;
+
+		const currentMsgs = this.messages[this.activeId] || [];
+		const index = currentMsgs.findIndex((m) => m.id === messageId);
+		if (index === -1) return;
+
+		// Slice the local messages array to discard all messages after that index
+		const slicedMsgs = currentMsgs.slice(0, index + 1);
+		// Update the edited message content
+		slicedMsgs[index] = {
+			...slicedMsgs[index],
+			content: newContent
+		};
+		this.messages[this.activeId] = slicedMsgs;
+
+		this.isThinking = true;
+		this.error = null;
+		this.saveToLocalStorage();
+
+		characterStore.activeCharacter.avatarState = 'thinking';
+		uiStore.setMoonState('thinking');
+
+		const assistantMsgId = crypto.randomUUID();
+		let startedStreaming = false;
+
+		try {
+			const response = await fetch('/api/chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					conversationId: this.activeId,
+					message: newContent,
+					characterId: characterStore.activeId,
+					provider: settingsStore.provider,
+					stream: true,
+					editId: messageId
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error('API server returned error');
+			}
+
+			const reader = response.body?.getReader();
+			if (!reader) {
+				throw new Error('Response body is not readable');
+			}
+
+			this.isStreaming = true;
+			this.isThinking = false;
+			startedStreaming = true;
+
+			// Add assistant message shell
+			const assistantMsg: ChatMessage = {
+				id: assistantMsgId,
+				role: 'assistant',
+				content: '',
+				createdAt: new Date().toISOString()
+			};
+			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
+
+			const updateMessage = (updates: Partial<ChatMessage>) => {
+				const msgs = this.messages[this.activeId!] || [];
+				const idx = msgs.findIndex((m) => m.id === assistantMsgId);
+				if (idx !== -1) {
+					msgs[idx] = {
+						...msgs[idx],
+						...updates
+					};
+					this.messages[this.activeId!] = [...msgs];
+				}
+			};
+
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						uiStore.setMoonState('idle');
+						break;
+					}
+
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split('\n');
+					buffer = lines.pop() || '';
+
+					for (const line of lines) {
+						const trimmed = line.trim();
+						if (!trimmed) continue;
+
+						if (trimmed.startsWith('data: ')) {
+							const jsonStr = trimmed.slice(6);
+							try {
+								const data = JSON.parse(jsonStr);
+								if (data.type === 'start') {
+									let emotionLabel = 'neutral';
+									let moodScore = 0;
+									if (data.emotion) {
+										emotionLabel = data.emotion.primaryEmotion || 'neutral';
+										moodScore = data.emotion.moodScore ?? 0;
+										this.updateAvatarFromEmotion(data.emotion.primaryEmotion);
+									}
+									updateMessage({ emotionLabel, moodScore });
+									characterStore.activeCharacter.avatarState = 'speaking';
+									uiStore.setMoonState('speaking');
+								} else if (data.type === 'token') {
+									const msgs = this.messages[this.activeId!] || [];
+									const msg = msgs.find((m) => m.id === assistantMsgId);
+									const currentContent = msg ? msg.content : '';
+									updateMessage({ content: currentContent + data.content });
+									uiStore.setMoonState('speaking');
+								} else if (data.type === 'done') {
+									const msgs = this.messages[this.activeId!] || [];
+									const msg = msgs.find((m) => m.id === assistantMsgId);
+									const finalEmotionLabel = msg?.emotionLabel;
+									const finalMoodScore = msg?.moodScore;
+
+									const conv = this.conversations.find((c) => c.id === this.activeId);
+									if (conv) {
+										conv.lastEmotionLabel = finalEmotionLabel;
+										conv.lastMoodScore = finalMoodScore;
+										conv.updatedAt = new Date().toISOString();
+									}
+									uiStore.setMoonState('idle');
+								} else if (data.type === 'error') {
+									throw new Error(data.error?.message || 'Error in stream');
+								}
+							} catch (e) {
+								console.error('Error parsing SSE line:', e);
+							}
+						}
+					}
+				}
+
+				if (buffer && buffer.startsWith('data: ')) {
+					const jsonStr = buffer.slice(6);
+					try {
+						const data = JSON.parse(jsonStr);
+						if (data.type === 'token') {
+							const msgs = this.messages[this.activeId!] || [];
+							const msg = msgs.find((m) => m.id === assistantMsgId);
+							const currentContent = msg ? msg.content : '';
+							updateMessage({ content: currentContent + data.content });
+						}
+					} catch (e) {
+						// Ignore
+					}
+				}
+			} finally {
+				reader.releaseLock();
+				this.isStreaming = false;
+			}
+		} catch (err) {
+			uiStore.setMoonState('idle');
+			console.error('Error during edit message streaming:', err);
+			this.error = err instanceof Error ? err.message : 'Streaming interrupted.';
+			this.isStreaming = false;
+			this.isThinking = false;
+		} finally {
+			this.isThinking = false;
+			this.saveToLocalStorage();
+		}
+	}
+
 	async rerollLastMessage() {
 		if (this.isStreaming || this.isThinking || this.isRerolling) return;
 		if (!this.activeId) return;

@@ -9,7 +9,7 @@ import {
 	messages,
 	aiProviderLogs
 } from '$lib/server/db/schema';
-import { eq, asc, and, desc } from 'drizzle-orm';
+import { eq, asc, and, desc, gt } from 'drizzle-orm';
 import { aiRouter } from '$lib/server/ai/router';
 import { classifyEmotion } from '$lib/server/emotion/classify';
 import { retrieveMemories } from '$lib/server/memory/retrieve';
@@ -173,7 +173,8 @@ const chatRequestSchema = z.object({
 	characterId: z.string().trim().min(1).optional(),
 	provider: z.enum(['deepseek', 'claude', 'groq']).optional(),
 	stream: z.boolean().optional(),
-	reroll: z.boolean().optional()
+	reroll: z.boolean().optional(),
+	editId: z.string().uuid().optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -224,7 +225,7 @@ export const POST: RequestHandler = async (event) => {
 
 		// 2. Validate with Zod
 		const validated = chatRequestSchema.parse(body);
-		const { conversationId, message, characterId, provider: requestProvider, stream, reroll } = validated;
+		const { conversationId, message, characterId, provider: requestProvider, stream, reroll, editId } = validated;
 
 		// 3. Rate Limit Check
 		let ip = 'unknown';
@@ -280,10 +281,63 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// 7. Classify user message emotion or retrieve last user message for reroll
-		let userMessageRecord;
-		let emotionAnalysis;
+		let userMessageRecord: any;
+		let emotionAnalysis: any;
 
-		if (reroll) {
+		if (editId) {
+			const [editedMessage] = await db
+				.select()
+				.from(messages)
+				.where(eq(messages.id, editId))
+				.limit(1);
+
+			if (!editedMessage) {
+				return json(
+					{ error: { code: 'NOT_FOUND', message: 'Message to edit not found' } },
+					{ status: 404 }
+				);
+			}
+
+			// Run emotion classification on the new message content
+			emotionAnalysis = await classifyEmotion(message);
+
+			// Start a database transaction
+			await db.transaction(async (tx) => {
+				// Update the message content of editId to the new message content.
+				// Also update the emotionLabel and moodScore since it's the user message.
+				const [updatedMsg] = await tx
+					.update(messages)
+					.set({
+						content: message,
+						emotionLabel: emotionAnalysis.primaryEmotion,
+						moodScore: emotionAnalysis.moodScore
+					})
+					.where(eq(messages.id, editId))
+					.returning();
+				
+				userMessageRecord = updatedMsg;
+
+				// Delete all messages in the conversation created after createdAt of the edited message
+				await tx
+					.delete(messages)
+					.where(
+						and(
+							eq(messages.conversationId, conversation.id),
+							gt(messages.createdAt, editedMessage.createdAt)
+						)
+					);
+
+				// Update conversation's lastEmotionLabel, lastMoodScore, and updatedAt
+				await tx
+					.update(conversations)
+					.set({
+						lastEmotionLabel: emotionAnalysis.primaryEmotion,
+						lastMoodScore: emotionAnalysis.moodScore,
+						updatedAt: new Date()
+					})
+					.where(eq(conversations.id, conversation.id));
+			});
+		} else if (reroll) {
 			const [lastUserMessage] = await db
 				.select()
 				.from(messages)

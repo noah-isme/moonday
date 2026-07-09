@@ -32,7 +32,8 @@ vi.mock('$env/dynamic/private', () => {
 			CLAUDE_MODEL: 'claude-3-5-sonnet-latest',
 			DEFAULT_AI_MODEL: 'deepseek-chat',
 			ENABLE_VECTOR_SEARCH: 'true',
-			ENABLE_MEMORY_EXTRACTION: 'true'
+			ENABLE_MEMORY_EXTRACTION: 'true',
+			ENCRYPTION_KEY: 'abcdefghijklmnopqrstuvwxyz123456'
 		}
 	};
 });

@@ -1,5 +1,18 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, boolean, timestamp, real, jsonb, customType } from 'drizzle-orm/pg-core';
 import { vector } from 'drizzle-orm/pg-core';
+import { encrypt, decrypt } from './encryption';
+
+export const encryptedText = customType<{ data: string }>({
+	dataType() {
+		return 'text';
+	},
+	toDriver(value: string): string {
+		return encrypt(value);
+	},
+	fromDriver(value: unknown): string {
+		return decrypt(value as string);
+	}
+});
 
 export const EMBEDDING_DIMENSION = 384;
 
@@ -54,7 +67,7 @@ export const messages = pgTable('messages', {
 		.references(() => conversations.id, { onDelete: 'cascade' })
 		.notNull(),
 	role: text('role').notNull(), // 'user' | 'assistant' | 'system'
-	content: text('content').notNull(),
+	content: encryptedText('content').notNull(),
 	provider: text('provider'), // e.g. 'deepseek' | 'claude'
 	model: text('model'),
 	emotionLabel: text('emotion_label'),
@@ -82,7 +95,7 @@ export const memories = pgTable('memories', {
 		.notNull(),
 	type: text('type').notNull(), // e.g. 'core_memory', 'preference', 'emotional_pattern', 'project_memory', 'relationship_context', 'personal_goal', 'recurring_problem', 'reflection'
 	title: text('title').notNull(),
-	content: text('content').notNull(),
+	content: encryptedText('content').notNull(),
 	importance: integer('importance').notNull(), // 1 to 10
 	confidence: real('confidence').notNull(), // 0.0 to 1.0
 	sourceConversationId: uuid('source_conversation_id').references(() => conversations.id, {
