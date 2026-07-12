@@ -12,6 +12,7 @@ import {
 } from '$lib/server/db/schema';
 import { eq, asc, and, desc, gt, inArray } from 'drizzle-orm';
 import { aiRouter } from '$lib/server/ai/router';
+import type { ChatStreamChunk } from '$lib/server/ai/types';
 import { classifyEmotion } from '$lib/server/emotion/classify';
 import { retrieveMemories } from '$lib/server/memory/retrieve';
 import { extractMemories } from '$lib/server/memory/extract';
@@ -79,7 +80,7 @@ async function getCharacterProfile(characterId?: string) {
 			},
 			{
 				name: 'Sarcastic MOONDAY',
-				description: 'Witty, slightly sarcastic, but friendly at core. Never cruel.',
+				description: 'Brutally honest, highly analytical, sharp-tongued, and roasts user flaws without corporate sugarcoating. Never mean just to be toxic, but communicates brutal truth with wit and Gen Z sarcasm.',
 				tone: 'sarcastic',
 				traits: {
 					warmth: 4,
@@ -175,7 +176,8 @@ const chatRequestSchema = z.object({
 	provider: z.enum(['deepseek', 'claude', 'groq']).optional(),
 	stream: z.boolean().optional(),
 	reroll: z.boolean().optional(),
-	editId: z.string().uuid().optional()
+	editId: z.string().uuid().optional(),
+	enableWebSearch: z.boolean().optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -226,7 +228,7 @@ export const POST: RequestHandler = async (event) => {
 
 		// 2. Validate with Zod
 		const validated = chatRequestSchema.parse(body);
-		const { conversationId, message, characterId, provider: requestProvider, stream, reroll, editId } = validated;
+		const { conversationId, message, characterId, provider: requestProvider, stream, reroll, editId, enableWebSearch } = validated;
 
 		// 3. Rate Limit Check
 		let ip = 'unknown';
@@ -469,7 +471,8 @@ export const POST: RequestHandler = async (event) => {
 				messages: chatMessages,
 				provider: requestProvider,
 				stream: true,
-				temperature: character.temperature
+				temperature: character.temperature,
+				enableWebSearch
 			});
 
 			const encoder = new TextEncoder();
@@ -500,7 +503,33 @@ export const POST: RequestHandler = async (event) => {
 								finalResult = value;
 								break;
 							}
-							const chunk = value as string;
+							const chunkVal = value as ChatStreamChunk;
+							if (typeof chunkVal === 'object' && chunkVal !== null) {
+								if (chunkVal.type === 'status') {
+									controller.enqueue(
+										encoder.encode(
+											`data: ${JSON.stringify({
+												type: 'status',
+												message: chunkVal.message
+											})}\n\n`
+										)
+									);
+									continue;
+								} else if (chunkVal.type === 'token') {
+									const chunk = chunkVal.content || '';
+									fullContent += chunk;
+									controller.enqueue(
+										encoder.encode(
+											`data: ${JSON.stringify({
+												type: 'token',
+												content: chunk
+											})}\n\n`
+										)
+									);
+									continue;
+								}
+							}
+							const chunk = chunkVal as string;
 							fullContent += chunk;
 							controller.enqueue(
 								encoder.encode(
@@ -648,7 +677,8 @@ export const POST: RequestHandler = async (event) => {
 				messages: chatMessages,
 				provider: requestProvider,
 				stream: false,
-				temperature: character.temperature
+				temperature: character.temperature,
+				enableWebSearch
 			});
 
 			// Log LLM Call

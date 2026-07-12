@@ -1,8 +1,11 @@
 export type AIProviderName = 'deepseek' | 'claude' | 'groq';
 
 export type ChatMessage = {
-	role: 'system' | 'user' | 'assistant';
+	role: 'system' | 'user' | 'assistant' | 'tool';
 	content: string;
+	name?: string;
+	tool_call_id?: string;
+	tool_calls?: any[];
 };
 
 export type GenerateChatOptions = {
@@ -12,6 +15,7 @@ export type GenerateChatOptions = {
 	temperature?: number;
 	maxTokens?: number;
 	stream?: boolean;
+	enableWebSearch?: boolean;
 };
 
 export type GenerateChatResult = {
@@ -23,13 +27,15 @@ export type GenerateChatResult = {
 	latencyMs?: number;
 };
 
+export type ChatStreamChunk = string | { type: 'token'; content: string } | { type: 'status'; message: string };
+
 export interface AIProvider {
 	name: AIProviderName;
 	generateChat(
 		options: GenerateChatOptions & { stream: true }
-	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
+	): Promise<AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>>;
 	generateChat(options: GenerateChatOptions & { stream?: false }): Promise<GenerateChatResult>;
 	generateChat(
 		options: GenerateChatOptions
-	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;
+	): Promise<GenerateChatResult | AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>>;
 }

@@ -19,7 +19,9 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "bun src/lib/server/db/seed.ts",
-		"db:reset": "bun src/lib/server/db/reset.ts"
+		"db:reset": "bun src/lib/server/db/reset.ts",
+		"search:up": "docker compose -f docker-compose.searxng.yml up -d",
+		"search:down": "docker compose -f docker-compose.searxng.yml down"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

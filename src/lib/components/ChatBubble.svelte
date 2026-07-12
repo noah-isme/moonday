@@ -97,6 +97,14 @@
 				<span>{formattedTime}</span>
 			</div>
 
+			<!-- Shimmering status -->
+			{#if message.role === 'assistant' && message.status}
+				<div class="px-1 py-0.5 text-xs flex items-center gap-1.5 select-none font-medium italic animate-pulse">
+					<span class="inline-block w-1.5 h-1.5 rounded-full bg-violet-glow shadow-[0_0_8px_#c084fc] animate-ping"></span>
+					<span class="text-violet-glow/90">{message.status}</span>
+				</div>
+			{/if}
+
 			<!-- Main Bubble Body -->
 			<div
 				class="px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all duration-300 shadow-lg {message.role ===

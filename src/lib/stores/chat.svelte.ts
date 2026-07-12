@@ -9,6 +9,7 @@ export interface ChatMessage {
 	content: string;
 	emotionLabel?: string;
 	moodScore?: number;
+	status?: string;
 	createdAt: string;
 }
 
@@ -38,7 +39,12 @@ export class ChatStore {
 	isThinking = $state<boolean>(false);
 	isStreaming = $state<boolean>(false);
 	isRerolling = $state<boolean>(false);
+	isWebSearchEnabled = $state<boolean>(false);
 	error = $state<string | null>(null);
+
+	toggleWebSearch() {
+		this.isWebSearchEnabled = !this.isWebSearchEnabled;
+	}
 
 	activeConversation = $derived.by(() => {
 		return this.conversations.find((c) => c.id === this.activeId) || null;
@@ -183,7 +189,8 @@ export class ChatStore {
 					message: content,
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
-					stream: true
+					stream: true,
+					enableWebSearch: this.isWebSearchEnabled
 				})
 			});
 
@@ -255,11 +262,17 @@ export class ChatStore {
 									updateMessage({ emotionLabel, moodScore });
 									characterStore.activeCharacter.avatarState = 'speaking';
 									uiStore.setMoonState('speaking');
+								} else if (data.type === 'status') {
+									updateMessage({ status: data.message });
 								} else if (data.type === 'token') {
 									const currentMsgs = this.messages[this.activeId!] || [];
 									const msg = currentMsgs.find((m) => m.id === assistantMsgId);
 									const currentContent = msg ? msg.content : '';
-									updateMessage({ content: currentContent + data.content });
+									const updates: Partial<ChatMessage> = { content: currentContent + data.content };
+									if (msg?.status) {
+										updates.status = undefined;
+									}
+									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
 									const currentMsgs = this.messages[this.activeId!] || [];
@@ -382,7 +395,8 @@ export class ChatStore {
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
 					stream: true,
-					editId: messageId
+					editId: messageId,
+					enableWebSearch: this.isWebSearchEnabled
 				})
 			});
 
@@ -454,11 +468,17 @@ export class ChatStore {
 									updateMessage({ emotionLabel, moodScore });
 									characterStore.activeCharacter.avatarState = 'speaking';
 									uiStore.setMoonState('speaking');
+								} else if (data.type === 'status') {
+									updateMessage({ status: data.message });
 								} else if (data.type === 'token') {
 									const msgs = this.messages[this.activeId!] || [];
 									const msg = msgs.find((m) => m.id === assistantMsgId);
 									const currentContent = msg ? msg.content : '';
-									updateMessage({ content: currentContent + data.content });
+									const updates: Partial<ChatMessage> = { content: currentContent + data.content };
+									if (msg?.status) {
+										updates.status = undefined;
+									}
+									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
 									const msgs = this.messages[this.activeId!] || [];
@@ -564,7 +584,8 @@ export class ChatStore {
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
 					stream: true,
-					reroll: true
+					reroll: true,
+					enableWebSearch: this.isWebSearchEnabled
 				})
 			});
 
@@ -632,11 +653,17 @@ export class ChatStore {
 									updateMessage({ emotionLabel, moodScore });
 									characterStore.activeCharacter.avatarState = 'speaking';
 									uiStore.setMoonState('speaking');
+								} else if (data.type === 'status') {
+									updateMessage({ status: data.message });
 								} else if (data.type === 'token') {
 									const msgs = this.messages[this.activeId!] || [];
 									const msg = msgs.find((m) => m.id === assistantMsgId);
 									const currentContent = msg ? msg.content : '';
-									updateMessage({ content: currentContent + data.content });
+									const updates: Partial<ChatMessage> = { content: currentContent + data.content };
+									if (msg?.status) {
+										updates.status = undefined;
+									}
+									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
 									const msgs = this.messages[this.activeId!] || [];

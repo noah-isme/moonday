@@ -12,6 +12,52 @@
 
 	let isSubmitting = $state(false);
 
+	// Initialize local states from data.profile.communicationStyle or form values or defaults
+	const commStyle = $derived.by(() => {
+		if (form?.values?.communicationStyle) {
+			try {
+				return JSON.parse(form.values.communicationStyle);
+			} catch (e) {
+				console.error('Failed to parse form communicationStyle value:', e);
+			}
+		}
+		return data.profile.communicationStyle || {};
+	});
+
+	let tone = $state('Sarcastic / Roasting');
+	let formality = $state('Casual / Gen Z');
+	let sarcasmLevelNum = $state(5);
+
+	// Synchronize when commStyle changes
+	$effect(() => {
+		const style = commStyle;
+		if (style.tone) tone = style.tone;
+		if (style.formality) formality = style.formality;
+		if (style.sarcasmLevel) {
+			const levelStr = String(style.sarcasmLevel).toLowerCase();
+			if (levelStr === 'none' || levelStr === '0') sarcasmLevelNum = 0;
+			else if (levelStr.includes('mild') || levelStr === '1' || levelStr === '2') sarcasmLevelNum = 2;
+			else if (levelStr.includes('spicy') || levelStr === '3' || levelStr === '4') sarcasmLevelNum = 4;
+			else if (levelStr.includes('unhinged') || levelStr.includes('brutal') || levelStr === '5') sarcasmLevelNum = 5;
+		}
+	});
+
+	// Derived Sarcasm Level string descriptor for storing in JSON
+	let sarcasmLevel = $derived.by(() => {
+		if (sarcasmLevelNum === 0) return 'none';
+		if (sarcasmLevelNum <= 2) return 'mild';
+		if (sarcasmLevelNum <= 4) return 'spicy';
+		return 'unhinged / brutal';
+	});
+
+	// Pretty label for the UI
+	let sarcasmLabel = $derived.by(() => {
+		if (sarcasmLevelNum === 0) return 'None';
+		if (sarcasmLevelNum <= 2) return 'Mild';
+		if (sarcasmLevelNum <= 4) return 'Spicy';
+		return 'Unhinged / Brutal';
+	});
+
 	function handleClearData() {
 		const verified = confirm(
 			'WARNING: This will permanently wipe all local storage data, including your conversation logs, check-in history, and saved memories. This action cannot be undone.\n\nDo you want to proceed?'
@@ -120,18 +166,66 @@
 				{/if}
 			</div>
 
-			<!-- Communication Style Field -->
-			<div class="flex flex-col gap-1.5">
-				<label for="communicationStyle" class="text-xs font-semibold text-pale-silver">Communication Style (JSON)</label>
-				<textarea
-					id="communicationStyle"
-					name="communicationStyle"
-					rows="4"
-					disabled={isSubmitting}
-					value={form?.values?.communicationStyle ?? JSON.stringify(data.profile.communicationStyle, null, 2)}
-					class="w-full p-3 text-xs font-mono bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all resize-y"
-					placeholder={'{ "formality": "to-the-point", "tone": "straightforward", "sarcasmLevel": "none" }'}
-				></textarea>
+			<!-- Communication Style GUI Form -->
+			<div class="space-y-4 p-4 bg-deep-navy/30 border border-slate-gray/5 rounded-2xl">
+				<h3 class="text-xs font-bold text-soft-white uppercase tracking-wider">Communication Style</h3>
+				
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<!-- Tone Dropdown -->
+					<div class="flex flex-col gap-1.5">
+						<label for="tone" class="text-xs font-semibold text-pale-silver">Tone</label>
+						<select
+							id="tone"
+							bind:value={tone}
+							disabled={isSubmitting}
+							class="w-full p-2.5 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all cursor-pointer"
+						>
+							<option value="Straightforward">Straightforward</option>
+							<option value="Sarcastic / Roasting">Sarcastic / Roasting</option>
+							<option value="Empathetic">Empathetic</option>
+							<option value="Analytical">Analytical</option>
+						</select>
+					</div>
+
+					<!-- Formality Dropdown -->
+					<div class="flex flex-col gap-1.5">
+						<label for="formality" class="text-xs font-semibold text-pale-silver">Formality</label>
+						<select
+							id="formality"
+							bind:value={formality}
+							disabled={isSubmitting}
+							class="w-full p-2.5 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all cursor-pointer"
+						>
+							<option value="Casual / Gen Z">Casual / Gen Z</option>
+							<option value="Professional">Professional</option>
+							<option value="To-the-point">To-the-point</option>
+						</select>
+					</div>
+
+					<!-- Sarcasm Level Slider -->
+					<div class="flex flex-col gap-1.5">
+						<div class="flex justify-between items-center">
+							<label for="sarcasmLevelRange" class="text-xs font-semibold text-pale-silver">Sarcasm Level</label>
+							<span class="text-xs font-bold text-violet-glow font-mono">{sarcasmLabel}</span>
+						</div>
+						<div class="flex items-center gap-3 py-1">
+							<span class="text-[10px] text-slate-gray">None</span>
+							<input
+								type="range"
+								id="sarcasmLevelRange"
+								min="0"
+								max="5"
+								bind:value={sarcasmLevelNum}
+								disabled={isSubmitting}
+								class="flex-1 h-1.5 bg-[#141b2b] rounded-lg appearance-none cursor-pointer accent-violet-glow border border-slate-gray/10"
+							/>
+							<span class="text-[10px] text-slate-gray font-semibold">Brutal</span>
+						</div>
+					</div>
+				</div>
+
+				<input type="hidden" name="communicationStyle" value={JSON.stringify({ tone, formality, sarcasmLevel })} />
+
 				{#if form?.error?.communicationStyle}
 					<span class="text-[10px] text-soft-red font-semibold">{form.error.communicationStyle[0]}</span>
 				{/if}

@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import { ClaudeProvider } from './providers/claude';
 import { DeepSeekProvider } from './providers/deepseek';
 import { GroqProvider } from './providers/groq';
-import type { AIProvider, AIProviderName, GenerateChatOptions, GenerateChatResult } from './types';
+import type { AIProvider, AIProviderName, GenerateChatOptions, GenerateChatResult, ChatStreamChunk } from './types';
 
 export type RoutingTaskType =
 	'daily_chat' | 'memory_extract' | 'reflection_deep' | 'emotional_reason' | 'fallback';
@@ -80,7 +80,7 @@ export class AIRouter {
 	generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions & { stream: true }
-	): Promise<AsyncGenerator<string, GenerateChatResult, unknown>>;
+	): Promise<AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>>;
 	generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions & { stream?: false }
@@ -88,11 +88,11 @@ export class AIRouter {
 	generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions
-	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>>;
+	): Promise<GenerateChatResult | AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>>;
 	async generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions
-	): Promise<GenerateChatResult | AsyncGenerator<string, GenerateChatResult, unknown>> {
+	): Promise<GenerateChatResult | AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>> {
 		// Let options.provider override the routed provider if explicitly specified
 		let provider: AIProvider;
 		if (options.provider === 'groq') {
