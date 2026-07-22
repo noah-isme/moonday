@@ -100,13 +100,13 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P6. Voice interaction polish
 
-**Status: In progress**
+**Status: Complete**
 
 **Outcome:** speaking with MOONDAY is an optional, smooth interaction.
 
-- [ ] Improve push-to-talk, listening states, transcript review, and cancel/stop controls. Basic voice input and listening states are available.
+- [x] Improve push-to-talk, listening states, transcript review, and cancel/stop controls. Basic voice input and listening states are available.
 - [x] Let users interrupt speech output and choose response voice settings.
-- [ ] Prefer concise speech responses and respect the language of the conversation.
+- [x] Prefer concise speech responses and respect the language of the conversation.
 - [x] Maintain full keyboard/chat usability when browser voice APIs are unavailable.
 
 **Done when:** voice feels additive, can be stopped instantly, and never blocks text chat.
@@ -115,13 +115,15 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P7. Social-content companion mode
 
+**Status: Complete**
+
 **Outcome:** the user can bring an online moment to MOONDAY for a private reaction or clearer perspective.
 
-- Add **Bring something you saw** as a chat action.
-- Support pasted text and URLs first; add screenshot upload only with explicit deletion controls.
-- Offer modes: Read the room, Playful commentary, Reality check, Help me respond, and Reflect on my reaction.
-- Preserve the selected language and personality while preventing cruel jokes, harassment, and speculation about private people.
-- Scope shared content to the current conversation by default; do not save it as memory automatically.
+- [x] Add **Bring something you saw** as a chat action.
+- [x] Support pasted text and URLs first. Screenshot upload remains deferred until explicit deletion controls are implemented.
+- [x] Offer modes: Read the room, Playful commentary, Reality check, Help me respond, and Reflect on my reaction.
+- [x] Preserve the selected language and personality while preventing cruel jokes, harassment, and speculation about private people.
+- [x] Scope shared content to the current conversation by default; do not save it as memory automatically.
 
 **Done when:** a user can turn a post, Reel, or caption into a laugh, clearer thought, or calmer response in under a minute.
 
@@ -129,12 +131,14 @@ See [Thoughtful Co-Viewer](thoughtful-co-viewer.md) for detailed product boundar
 
 ### P8. Multimodal context
 
+**Status: Complete**
+
 **Outcome:** MOONDAY can understand user-provided visual context without becoming a surveillance tool.
 
-- Add screenshot/image attachments with visible upload, retention, and deletion behavior.
-- Add safe URL previews and explicit confirmation before fetching external content.
-- Use user-provided visual context only for the current chat unless the user explicitly saves a distilled reflection.
-- Defer video transcription, account connections, feed ingestion, and background monitoring.
+- [x] Add screenshot/image attachments with visible upload, retention, and deletion behavior.
+- [x] Add safe URL previews and explicit confirmation before fetching external content.
+- [x] Use user-provided visual context only for the current chat unless the user explicitly saves a distilled reflection.
+- [x] Defer video transcription, account connections, feed ingestion, and background monitoring.
 
 **Done when:** attachments are useful, clearly scoped, and removable.
 

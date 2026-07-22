@@ -9,6 +9,10 @@
 	import ChatInput from '$lib/components/ChatInput.svelte';
 	import CharacterSelector from '$lib/components/CharacterSelector.svelte';
 	import ProviderSelector from '$lib/components/ProviderSelector.svelte';
+	import CoViewerComposer from '$lib/components/CoViewerComposer.svelte';
+	import type { CoViewerMode } from '$lib/types/co-viewer';
+	import type { ImageAttachment, UrlContext } from '$lib/types/multimodal';
+	import MultimodalContextComposer from '$lib/components/MultimodalContextComposer.svelte';
 
 	let scrollContainer = $state<HTMLDivElement | null>(null);
 	let drawerOpen = $state(false);
@@ -20,6 +24,8 @@
 	let doNotRememberNextMessage = $state(false);
 	let renameId = $state<string | null>(null);
 	let renameValue = $state('');
+	let coViewerOpen = $state(false);
+	let multimodalOpen = $state(false);
 
 	let activeConv = $derived(chatStore.activeConversation);
 	let messages = $derived(chatStore.activeMessages);
@@ -115,6 +121,30 @@
 		const doNotRemember = doNotRememberNextMessage;
 		doNotRememberNextMessage = false;
 		await chatStore.sendMessage(text, { doNotRemember });
+	}
+
+	async function handleCoViewerSubmit(content: string, mode: CoViewerMode) {
+		coViewerOpen = false;
+		const modeLabel = mode.replaceAll('_', ' ');
+		await chatStore.sendMessage(`I brought something I saw online. Please ${modeLabel} on it:\n\n${content}`, {
+			doNotRemember: true,
+			coViewerMode: mode
+		});
+	}
+
+	async function handleMultimodalContext(context: {
+		images: ImageAttachment[];
+		urlContext?: UrlContext;
+	}) {
+		multimodalOpen = false;
+		const description = context.images.length
+			? `I shared ${context.images.length === 1 ? 'an image' : `${context.images.length} images`} for context.`
+			: 'I shared a link preview for context.';
+		await chatStore.sendMessage(description, {
+			doNotRemember: true,
+			images: context.images,
+			urlContext: context.urlContext
+		});
 	}
 
 	async function savePendingMemory(index: number) {
@@ -573,7 +603,7 @@
 					<p class="text-xs font-semibold text-pale-silver">A gentle place to begin</p>
 					<p class="text-xs text-slate-gray mt-1">Pick a thought, or write your own.</p>
 					<div class="grid gap-2 mt-4 text-left">
-						{#each starterPrompts as prompt}
+					{#each starterPrompts as prompt}
 							<button
 								type="button"
 								onclick={() => handleSend(prompt)}
@@ -581,7 +611,13 @@
 							>
 								{prompt}
 							</button>
-						{/each}
+					{/each}
+					<button
+						type="button"
+						onclick={() => (coViewerOpen = true)}
+						class="w-full px-4 py-3 rounded-2xl bg-violet-glow/10 border border-violet-glow/30 text-xs text-pale-silver hover:bg-violet-glow/20 transition-colors cursor-pointer"
+						>Bring something you saw</button
+					>
 					</div>
 				</div>
 			{/if}
@@ -614,6 +650,21 @@
 
 		<!-- Chat Input Area -->
 		<div class="pt-4 border-t border-slate-gray/10 mt-2">
+			{#if multimodalOpen}
+				<MultimodalContextComposer onReady={handleMultimodalContext} onClose={() => (multimodalOpen = false)} />
+			{/if}
+			{#if coViewerOpen}
+				<CoViewerComposer onSubmit={handleCoViewerSubmit} onClose={() => (coViewerOpen = false)} />
+			{/if}
+			<div class="mb-2 flex gap-3">
+			<button
+				type="button"
+				onclick={() => (coViewerOpen = !coViewerOpen)}
+				class="mb-2 text-xs text-slate-gray hover:text-violet-glow"
+				>{coViewerOpen ? 'Hide co-viewer' : 'Bring something you saw'}</button
+			>
+				<button type="button" onclick={() => (multimodalOpen = !multimodalOpen)} class="text-xs text-slate-gray hover:text-cyan-glow">{multimodalOpen ? 'Hide context' : 'Add image or link'}</button>
+			</div>
 			<ChatInput
 				onSend={handleSend}
 				isThinking={isThinkingOrStreaming}

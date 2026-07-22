@@ -619,7 +619,7 @@
 						class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.voiceOutputEnabled
 							? 'bg-violet-glow'
 							: 'bg-slate-gray/30'}"
-						disabled={!voiceStore.isSupported}
+						disabled={!voiceStore.isSynthesisSupported}
 					>
 						<div
 							class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
@@ -628,6 +628,41 @@
 					</button>
 				</div>
 			</div>
+
+			{#if voiceStore.isSynthesisSupported}
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<label class="flex flex-col gap-1.5 text-xs text-slate-gray">
+						<span class="font-semibold text-pale-silver">Response voice</span>
+						<select
+							value={settingsStore.voiceName}
+							onchange={(event) =>
+								settingsStore.setVoiceName((event.currentTarget as HTMLSelectElement).value)}
+							class="rounded-xl border border-slate-gray/10 bg-deep-navy p-2.5 text-xs text-pale-silver"
+						>
+							<option value="">Use a voice matching the conversation language</option>
+							{#each voiceStore.voices as voice}
+								<option value={voice.name}>{voice.name} ({voice.lang})</option>
+							{/each}
+						</select>
+					</label>
+					<label class="flex flex-col gap-1.5 text-xs text-slate-gray">
+						<span class="font-semibold text-pale-silver"
+							>Speaking pace: {settingsStore.voiceRate.toFixed(1)}×</span
+						>
+						<input
+							type="range"
+							min="0.7"
+							max="1.3"
+							step="0.1"
+							value={settingsStore.voiceRate}
+							oninput={(event) =>
+								settingsStore.setVoiceRate(Number((event.currentTarget as HTMLInputElement).value))}
+							class="accent-violet-glow"
+						/>
+						<span class="text-[10px] text-slate-gray">MOONDAY reads only the first few sentences aloud.</span>
+					</label>
+				</div>
+			{/if}
 		</div>
 	</details>
 

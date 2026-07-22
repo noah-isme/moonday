@@ -37,17 +37,11 @@
 		textValue = transcript;
 	}
 
-	// When voice starts/ends, we hook into voiceStore to auto-send on speech completion (optional/gentle)
-	$effect(() => {
-		voiceStore.onSpeechEnd = () => {
-			if (textValue.trim() && !isThinking) {
-				handleSend();
-			}
-		};
-		return () => {
-			voiceStore.onSpeechEnd = null;
-		};
-	});
+	function discardTranscript() {
+		voiceStore.stopListening();
+		voiceStore.transcript = '';
+		textValue = '';
+	}
 </script>
 
 <div
@@ -60,7 +54,7 @@
 	<textarea
 		bind:value={textValue}
 		onkeydown={handleKeyDown}
-		placeholder={voiceStore.isListening ? 'Listening to your voice...' : 'Type your thoughts...'}
+		placeholder={voiceStore.isListening ? 'Listening — tap stop when you are done...' : 'Type your thoughts...'}
 		disabled={isThinking}
 		rows="1"
 		class="flex-1 max-h-32 min-h-[40px] py-2.5 px-3 bg-transparent text-soft-white text-sm outline-none resize-none placeholder-slate-gray disabled:opacity-50 overflow-y-auto"
@@ -166,3 +160,24 @@
 		{/if}
 	</button>
 </div>
+
+{#if voiceStore.isListening || voiceStore.transcript.trim()}
+	<div class="mt-2 flex items-center justify-between gap-3 px-2 text-xs" aria-live="polite">
+		<p class={voiceStore.isListening ? 'text-cyan-glow' : 'text-slate-gray'}>
+			{voiceStore.isListening
+				? voiceStore.recognitionState === 'starting'
+					? 'Starting microphone…'
+					: 'Listening… your words stay editable before sending.'
+				: 'Transcript ready to review.'}
+		</p>
+		{#if voiceStore.transcript.trim() && !voiceStore.isListening}
+			<button
+				type="button"
+				onclick={discardTranscript}
+				class="rounded-md px-2 py-1 text-slate-gray hover:text-pale-silver"
+			>
+				Discard
+			</button>
+		{/if}
+	</div>
+{/if}

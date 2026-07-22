@@ -27,7 +27,15 @@ export class ClaudeProvider implements AIProvider {
 			.filter((m) => m.role !== 'system')
 			.map((m) => ({
 				role: m.role as 'user' | 'assistant',
-				content: m.content
+				content: m.images?.length
+					? [
+							...m.images.map((image) => ({
+								type: 'image' as const,
+								source: { type: 'base64' as const, media_type: image.mediaType, data: image.data }
+							})),
+							{ type: 'text' as const, text: m.content }
+						]
+					: m.content
 			}));
 
 		const startTime = Date.now();

@@ -6,6 +6,7 @@ export type ChatMessage = {
 	name?: string;
 	tool_call_id?: string;
 	tool_calls?: any[];
+	images?: Array<{ mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'; data: string }>;
 };
 
 export type GenerateChatOptions = {

@@ -26,6 +26,20 @@ globalThis.window = {
 } as any;
 
 globalThis.alert = vi.fn();
+globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
+	text: string;
+	lang = '';
+	rate = 1;
+	pitch = 1;
+	voice: SpeechSynthesisVoice | null = null;
+	onstart: (() => void) | null = null;
+	onend: (() => void) | null = null;
+	onerror: (() => void) | null = null;
+
+	constructor(text: string) {
+		this.text = text;
+	}
+} as any;
 
 describe('VoiceStore', () => {
 	let mockStart: any;
@@ -68,11 +82,38 @@ describe('VoiceStore', () => {
 		expect(store.isSupported).toBe(true);
 	});
 
-	it('should lock language to id-ID', async () => {
+	it('should use Indonesian recognition by default and honor an explicit response language', async () => {
+		const { VoiceStore } = await import('../lib/stores/voice.svelte');
+		const { settingsStore } = await import('../lib/stores/settings.svelte');
+		settingsStore.setResponseLanguage('id');
+		const store = new VoiceStore();
+		expect(store['recognition'].lang).toBe('id-ID');
+		settingsStore.setResponseLanguage('en');
+		store.startListening();
+		expect(store['recognition'].lang).toBe('en-US');
+	});
+
+	it('keeps the transcript available for review after recognition ends', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
-		// In the constructor, recognition lang is set to id-ID
-		expect(store['recognition'].lang).toBe('id-ID');
+		const onSpeechEnd = vi.fn();
+		store.onSpeechEnd = onSpeechEnd;
+		store.startListening();
+		store['recognition'].onresult({
+			resultIndex: 0,
+			results: [[{ transcript: 'Please keep this as a draft.' }]]
+		});
+		store['recognition'].onend();
+		expect(store.transcript).toBe('Please keep this as a draft.');
+		expect(onSpeechEnd).toHaveBeenCalledTimes(1);
+	});
+
+	it('limits spoken output to a concise, readable excerpt', async () => {
+		const { VoiceStore } = await import('../lib/stores/voice.svelte');
+		const store = new VoiceStore();
+		store.speak('One. Two. Three. Four. Five.');
+		const utterance = (window.speechSynthesis.speak as any).mock.calls.at(-1)[0];
+		expect(utterance.text).toBe('One. Two. Three.');
 	});
 
 	it('should transition to starting state when startListening is called', async () => {

@@ -2,6 +2,8 @@ import { browser } from '$app/environment';
 import { characterStore } from './character.svelte';
 import { settingsStore } from './settings.svelte';
 import { uiStore } from '$lib/stores/ui.svelte';
+import type { CoViewerMode } from '$lib/types/co-viewer';
+import type { ImageAttachment, UrlContext } from '$lib/types/multimodal';
 
 export interface ChatMessage {
 	id: string;
@@ -330,7 +332,15 @@ export class ChatStore {
 		}
 	}
 
-	async sendMessage(content: string, options: { doNotRemember?: boolean } = {}) {
+	async sendMessage(
+		content: string,
+		options: {
+			doNotRemember?: boolean;
+			coViewerMode?: CoViewerMode;
+			images?: ImageAttachment[];
+			urlContext?: UrlContext;
+		} = {}
+	) {
 		if (!content.trim()) return;
 		if (!this.activeId) await this.createNewConversation();
 		if (!this.activeId) return;
@@ -371,7 +381,10 @@ export class ChatStore {
 					stream: true,
 					enableWebSearch: this.isWebSearchEnabled,
 					enableMemoryExtraction: settingsStore.memoryExtractionEnabled,
-					doNotRemember: options.doNotRemember
+					doNotRemember: options.doNotRemember,
+					coViewerMode: options.coViewerMode,
+					images: options.images,
+					urlContext: options.urlContext
 				})
 			});
 

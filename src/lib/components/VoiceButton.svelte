@@ -16,7 +16,9 @@
 		};
 	});
 
-	function handleVoiceClick() {
+	function handleVoiceClick(event: MouseEvent) {
+		// Pointer interactions are handled as push-to-talk below. A click with detail 0 is keyboard activation.
+		if (event.detail !== 0) return;
 		if (!voiceStore.isSupported) {
 			alert('Speech recognition is not supported in this browser. Try Chrome, Safari, or Edge.');
 			return;
@@ -28,12 +30,27 @@
 			voiceStore.startListening();
 		}
 	}
+
+	function startPushToTalk(event: PointerEvent) {
+		if (event.pointerType === 'mouse' && event.button !== 0) return;
+		if (!voiceStore.isSupported || voiceStore.isListening) return;
+		(event.currentTarget as HTMLButtonElement).setPointerCapture?.(event.pointerId);
+		voiceStore.startListening();
+	}
+
+	function stopPushToTalk() {
+		if (voiceStore.isListening) voiceStore.stopListening();
+	}
 </script>
 
 {#if settingsStore.voiceInputEnabled}
 	<button
 		type="button"
 		onclick={handleVoiceClick}
+		onpointerdown={startPushToTalk}
+		onpointerup={stopPushToTalk}
+		onpointercancel={stopPushToTalk}
+		onlostpointercapture={stopPushToTalk}
 		disabled={!voiceStore.isSupported}
 		class="relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 focus:outline-none {!voiceStore.isSupported
 			? 'bg-soft-dark-blue/50 text-slate-gray/40 cursor-not-allowed opacity-50'
@@ -43,8 +60,9 @@
 		title={!voiceStore.isSupported
 			? 'Speech recognition is not supported in this browser'
 			: voiceStore.isListening
-				? 'Listening... Click to stop'
-				: 'Start speaking'}
+				? 'Listening… release or tap to stop'
+				: 'Hold to talk, or tap to start'}
+		aria-label={voiceStore.isListening ? 'Stop voice dictation' : 'Start voice dictation'}
 	>
 		<!-- Pulsing background shadow -->
 		{#if voiceStore.isListening}

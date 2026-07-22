@@ -6,6 +6,8 @@ export class SettingsStore {
 	responseLanguage = $state<'auto' | 'en' | 'id'>('auto');
 	voiceInputEnabled = $state<boolean>(true);
 	voiceOutputEnabled = $state<boolean>(true);
+	voiceRate = $state<number>(1);
+	voiceName = $state<string>('');
 	memoryExtractionEnabled = $state<boolean>(true);
 	proactiveCheckInsEnabled = $state<boolean>(true);
 	proactiveCheckInFrequency = $state<'daily' | 'weekdays'>('daily');
@@ -24,6 +26,9 @@ export class SettingsStore {
 						this.voiceInputEnabled = parsed.voiceInputEnabled;
 					if (parsed.voiceOutputEnabled !== undefined)
 						this.voiceOutputEnabled = parsed.voiceOutputEnabled;
+					if (typeof parsed.voiceRate === 'number' && parsed.voiceRate >= 0.7 && parsed.voiceRate <= 1.3)
+						this.voiceRate = parsed.voiceRate;
+					if (typeof parsed.voiceName === 'string') this.voiceName = parsed.voiceName;
 					if (parsed.memoryExtractionEnabled !== undefined)
 						this.memoryExtractionEnabled = parsed.memoryExtractionEnabled;
 					if (parsed.proactiveCheckInsEnabled !== undefined)
@@ -51,6 +56,8 @@ export class SettingsStore {
 							responseLanguage: this.responseLanguage,
 							voiceInputEnabled: this.voiceInputEnabled,
 							voiceOutputEnabled: this.voiceOutputEnabled,
+							voiceRate: this.voiceRate,
+							voiceName: this.voiceName,
 							memoryExtractionEnabled: this.memoryExtractionEnabled,
 							proactiveCheckInsEnabled: this.proactiveCheckInsEnabled,
 							proactiveCheckInFrequency: this.proactiveCheckInFrequency,
@@ -87,6 +94,14 @@ export class SettingsStore {
 
 	toggleVoiceOutput() {
 		this.voiceOutputEnabled = !this.voiceOutputEnabled;
+	}
+
+	setVoiceRate(rate: number) {
+		this.voiceRate = Math.min(1.3, Math.max(0.7, rate));
+	}
+
+	setVoiceName(name: string) {
+		this.voiceName = name;
 	}
 
 	toggleMemoryExtraction() {
