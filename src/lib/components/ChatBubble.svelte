@@ -240,10 +240,12 @@
 					{/each}
 					<button
 						type="button"
-						onclick={() =>
-							voiceStore.isSpeaking ? voiceStore.stopSpeaking() : voiceStore.speak(message.content)}
+							onclick={() =>
+								voiceStore.isSpeaking || voiceStore.isPreparingSpeech
+									? voiceStore.stopSpeaking()
+									: voiceStore.speak(message.content)}
 						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
-						>{voiceStore.isSpeaking ? 'Stop speaking' : 'Speak'}</button
+						>{voiceStore.isSpeaking || voiceStore.isPreparingSpeech ? 'Stop speaking' : 'Speak'}</button
 					>
 					<button
 						type="button"

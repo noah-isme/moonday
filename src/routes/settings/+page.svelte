@@ -560,8 +560,8 @@
 		</summary>
 		<div class="pt-3 space-y-4">
 			<p class="text-xs text-slate-gray">
-				Control microphone speech-to-text dictation and synthesized reading of responses in the
-				browser.
+				Control microphone dictation and synthesized reading of responses. Dictation sends a short,
+				user-started recording to Groq Whisper for transcription; audio is not stored by MOONDAY.
 			</p>
 
 			<!-- Voice API Support Banner -->
@@ -607,9 +607,9 @@
 					class="flex items-center justify-between p-4 bg-deep-navy/40 border border-slate-gray/5 rounded-2xl"
 				>
 					<div class="flex flex-col">
-						<span class="text-xs font-semibold text-pale-silver">Speech Synthesis (Output)</span>
+						<span class="text-xs font-semibold text-pale-silver">MOONDAY Voice (Output)</span>
 						<span class="text-[9px] text-slate-gray mt-0.5"
-							>Speak assistant replies automatically</span
+							>Uses local Kokoro for English; browser fallback otherwise</span
 						>
 					</div>
 					<button
@@ -619,7 +619,6 @@
 						class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.voiceOutputEnabled
 							? 'bg-violet-glow'
 							: 'bg-slate-gray/30'}"
-						disabled={!voiceStore.isSynthesisSupported}
 					>
 						<div
 							class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
@@ -632,7 +631,7 @@
 			{#if voiceStore.isSynthesisSupported}
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<label class="flex flex-col gap-1.5 text-xs text-slate-gray">
-						<span class="font-semibold text-pale-silver">Response voice</span>
+						<span class="font-semibold text-pale-silver">Browser fallback voice</span>
 						<select
 							value={settingsStore.voiceName}
 							onchange={(event) =>

@@ -1,0 +1,8 @@
+services:
+  kokoro-tts:
+    build:
+      args:
+        KOKORO_ONNX_PACKAGE: 'kokoro-onnx[gpu]'
+    environment:
+      ONNX_PROVIDER: CUDAExecutionProvider
+    gpus: all

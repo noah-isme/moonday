@@ -6,7 +6,7 @@ export class SettingsStore {
 	responseLanguage = $state<'auto' | 'en' | 'id'>('auto');
 	voiceInputEnabled = $state<boolean>(true);
 	voiceOutputEnabled = $state<boolean>(true);
-	voiceRate = $state<number>(1);
+	voiceRate = $state<number>(1.15);
 	voiceName = $state<string>('');
 	memoryExtractionEnabled = $state<boolean>(true);
 	proactiveCheckInsEnabled = $state<boolean>(true);

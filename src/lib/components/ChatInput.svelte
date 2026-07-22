@@ -54,7 +54,7 @@
 	<textarea
 		bind:value={textValue}
 		onkeydown={handleKeyDown}
-		placeholder={voiceStore.isListening ? 'Listening — tap stop when you are done...' : 'Type your thoughts...'}
+		placeholder={voiceStore.isListening ? 'Listening — tap the microphone when you are done...' : 'Type your thoughts...'}
 		disabled={isThinking}
 		rows="1"
 		class="flex-1 max-h-32 min-h-[40px] py-2.5 px-3 bg-transparent text-soft-white text-sm outline-none resize-none placeholder-slate-gray disabled:opacity-50 overflow-y-auto"
@@ -161,10 +161,12 @@
 	</button>
 </div>
 
-{#if voiceStore.isListening || voiceStore.transcript.trim()}
+{#if voiceStore.isListening || voiceStore.isTranscribing || voiceStore.transcript.trim()}
 	<div class="mt-2 flex items-center justify-between gap-3 px-2 text-xs" aria-live="polite">
 		<p class={voiceStore.isListening ? 'text-cyan-glow' : 'text-slate-gray'}>
-			{voiceStore.isListening
+			{voiceStore.isTranscribing
+				? 'Transcribing your recording…'
+				: voiceStore.isListening
 				? voiceStore.recognitionState === 'starting'
 					? 'Starting microphone…'
 					: 'Listening… your words stay editable before sending.'
@@ -179,5 +181,18 @@
 				Discard
 			</button>
 		{/if}
+	</div>
+{/if}
+
+{#if voiceStore.isPreparingSpeech}
+	<div class="mt-2 px-2 text-xs text-cyan-glow" aria-live="polite">
+		MOONDAY is preparing your local voice…
+	</div>
+{/if}
+
+{#if voiceStore.errorMessage}
+	<div class="mt-2 flex items-center justify-between gap-3 px-2 text-xs text-soft-red" role="alert">
+		<span>{voiceStore.errorMessage}</span>
+		<button type="button" onclick={() => (voiceStore.errorMessage = null)} class="shrink-0 rounded px-1 text-slate-gray hover:text-pale-silver" aria-label="Dismiss voice error">×</button>
 	</div>
 {/if}

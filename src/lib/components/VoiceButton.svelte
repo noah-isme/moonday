@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
+	import { onMount } from 'svelte';
 
 	let { onTranscript } = $props<{
 		onTranscript?: (text: string) => void;
@@ -16,9 +17,12 @@
 		};
 	});
 
-	function handleVoiceClick(event: MouseEvent) {
-		// Pointer interactions are handled as push-to-talk below. A click with detail 0 is keyboard activation.
-		if (event.detail !== 0) return;
+	onMount(() => {
+		voiceStore.initialize();
+	});
+
+	function handleVoiceClick() {
+		if (voiceStore.isTranscribing) return;
 		if (!voiceStore.isSupported) {
 			alert('Speech recognition is not supported in this browser. Try Chrome, Safari, or Edge.');
 			return;
@@ -31,37 +35,25 @@
 		}
 	}
 
-	function startPushToTalk(event: PointerEvent) {
-		if (event.pointerType === 'mouse' && event.button !== 0) return;
-		if (!voiceStore.isSupported || voiceStore.isListening) return;
-		(event.currentTarget as HTMLButtonElement).setPointerCapture?.(event.pointerId);
-		voiceStore.startListening();
-	}
-
-	function stopPushToTalk() {
-		if (voiceStore.isListening) voiceStore.stopListening();
-	}
 </script>
 
 {#if settingsStore.voiceInputEnabled}
 	<button
 		type="button"
 		onclick={handleVoiceClick}
-		onpointerdown={startPushToTalk}
-		onpointerup={stopPushToTalk}
-		onpointercancel={stopPushToTalk}
-		onlostpointercapture={stopPushToTalk}
-		disabled={!voiceStore.isSupported}
+		disabled={!voiceStore.isSupported || voiceStore.isTranscribing}
 		class="relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 focus:outline-none {!voiceStore.isSupported
 			? 'bg-soft-dark-blue/50 text-slate-gray/40 cursor-not-allowed opacity-50'
 			: voiceStore.isListening
 				? 'bg-cyan-glow text-deep-navy shadow-cyan-glow cursor-pointer'
 				: 'bg-soft-dark-blue text-slate-gray hover:bg-slate-gray/10 hover:text-pale-silver cursor-pointer'}"
 		title={!voiceStore.isSupported
-			? 'Speech recognition is not supported in this browser'
+			? 'Microphone recording is not supported in this browser'
+			: voiceStore.isTranscribing
+				? 'Transcribing your recording…'
 			: voiceStore.isListening
-				? 'Listening… release or tap to stop'
-				: 'Hold to talk, or tap to start'}
+				? 'Listening… tap to stop'
+				: 'Tap to start dictation'}
 		aria-label={voiceStore.isListening ? 'Stop voice dictation' : 'Start voice dictation'}
 	>
 		<!-- Pulsing background shadow -->

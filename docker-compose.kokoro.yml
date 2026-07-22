@@ -1,0 +1,42 @@
+services:
+  kokoro-tts:
+    build:
+      context: ./docker/kokoro
+      args:
+        KOKORO_ONNX_VERSION: "0.5.0"
+    image: moonday/kokoro-tts:local
+    container_name: moonday-kokoro-tts
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8880:8080'
+    environment:
+      KOKORO_MODEL_PATH: /models/kokoro-v1.0.int8.onnx
+      KOKORO_VOICES_PATH: /models/voices-v1.0.bin
+      KOKORO_DEFAULT_VOICE: af_sarah
+      KOKORO_MAX_TEXT_LENGTH: '2000'
+      ORT_INTRA_OP_NUM_THREADS: '6'
+      ORT_INTER_OP_NUM_THREADS: '1'
+    read_only: true
+    tmpfs:
+      # Kokoro's phonemizer copies and loads libespeak-ng from /tmp at runtime.
+      - /tmp:rw,exec,nosuid,size=256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: '6.0'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 45s

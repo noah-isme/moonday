@@ -84,17 +84,32 @@
 		}
 	});
 
-	// Trigger voice synthesis on new assistant message
-	let lastMessageCount = $state(0);
+	// Speak only a completed assistant response. Streaming first adds an empty shell, so counting
+	// messages would otherwise attempt synthesis before any text has arrived.
+	let voiceConversationId = $state<string | null>(null);
+	let lastSpokenAssistantId = $state<string | null>(null);
 	$effect(() => {
-		const currentCount = messages.length;
-		if (currentCount > lastMessageCount) {
-			const lastMsg = messages[currentCount - 1];
-			if (lastMsg && lastMsg.role === 'assistant' && settingsStore.voiceOutputEnabled) {
-				voiceStore.speak(lastMsg.content);
-			}
+		const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
+
+		// Establish a baseline after server hydration or conversation switching. Old history must not
+		// suddenly be read aloud when the user opens a chat.
+		if (voiceConversationId !== activeConv?.id) {
+			voiceConversationId = activeConv?.id || null;
+			lastSpokenAssistantId = latestAssistant?.id || null;
+			return;
 		}
-		lastMessageCount = currentCount;
+
+		if (
+			latestAssistant?.persisted &&
+			latestAssistant.content.trim() &&
+			latestAssistant.id !== lastSpokenAssistantId &&
+			!chatStore.isThinking &&
+			!chatStore.isStreaming &&
+			settingsStore.voiceOutputEnabled
+		) {
+			lastSpokenAssistantId = latestAssistant.id;
+			voiceStore.speak(latestAssistant.content);
+		}
 	});
 
 	onMount(() => {
@@ -198,7 +213,7 @@
 </script>
 
 <div
-	class="flex-1 flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)] md:h-[calc(100vh-60px)] min-h-0 relative"
+	class="flex-1 flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)] md:h-[calc(100vh-60px)] min-h-0 overflow-hidden relative"
 >
 	<!-- Left sidebar (Conversations history selector) on Desktop -->
 	<div
@@ -311,7 +326,7 @@
 
 	<!-- Center Chat Message Window -->
 	<div
-		class="flex-1 flex flex-col bg-soft-dark-blue/15 border border-slate-gray/10 rounded-3xl p-4 md:p-6 min-h-0"
+		class="flex-1 flex flex-col bg-soft-dark-blue/15 border border-slate-gray/10 rounded-3xl p-4 md:p-6 min-h-0 overflow-hidden"
 	>
 		<!-- Chat Header Toolbar -->
 		<div
@@ -533,7 +548,7 @@
 		{/if}
 
 		<!-- Scrollable Messages Container -->
-		<div bind:this={scrollContainer} class="flex-1 overflow-y-auto px-1 scroll-smooth">
+		<div bind:this={scrollContainer} class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-1 scroll-smooth">
 			{#if showDailyContinuity}
 				<div
 					class="mx-auto mb-4 max-w-lg rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-4 text-center"

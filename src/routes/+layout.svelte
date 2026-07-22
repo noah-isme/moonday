@@ -46,7 +46,7 @@
 	<title>MOONDAY - AI Emotional Companion</title>
 </svelte:head>
 
-<div class="flex flex-col md:flex-row min-h-screen bg-deep-navy text-soft-white antialiased">
+<div class="flex h-screen flex-col overflow-hidden bg-deep-navy text-soft-white antialiased md:flex-row">
 	<!-- Left Sidebar (Desktop) -->
 	<aside
 		class="hidden md:flex flex-col w-64 bg-soft-dark-blue border-r border-slate-gray/10 p-5 flex-shrink-0 select-none"
@@ -133,7 +133,7 @@
 	<main
 		class="flex-1 flex flex-col min-h-0 relative pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0 overflow-y-auto"
 	>
-		<div class="max-w-5xl w-full mx-auto p-4 sm:p-6 md:p-8 flex-1 flex flex-col">
+		<div class="max-w-5xl w-full mx-auto p-4 sm:p-6 md:p-8 flex-1 flex flex-col min-h-0">
 			{@render children()}
 		</div>
 	</main>

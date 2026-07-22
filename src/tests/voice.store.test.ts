@@ -1,31 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock browser check
-vi.mock('$app/environment', () => {
-	globalThis.localStorage = {
-		getItem: () => null,
-		setItem: () => {},
-		clear: () => {},
-		removeItem: () => {},
-		key: () => null,
-		length: 0
-	};
-	return {
-		browser: true
-	};
-});
+vi.mock('$app/environment', () => ({ browser: true }));
+
+class MockMediaRecorder {
+	static isTypeSupported = vi.fn().mockReturnValue(true);
+	state: 'inactive' | 'recording' = 'inactive';
+	ondataavailable: ((event: { data: Blob }) => void) | null = null;
+	onstop: (() => Promise<void> | void) | null = null;
+	constructor(public stream: MediaStream, public options?: MediaRecorderOptions) {}
+	start = vi.fn(() => (this.state = 'recording'));
+	stop = vi.fn(() => (this.state = 'inactive'));
+}
+
+const mockTrackStop = vi.fn();
+const mockStream = { getTracks: () => [{ stop: mockTrackStop }] } as any;
+let mockGetUserMedia: ReturnType<typeof vi.fn>;
 
 globalThis.window = {
-	speechSynthesis: {
-		speak: vi.fn(),
-		cancel: vi.fn(),
-		getVoices: vi.fn().mockReturnValue([])
-	},
-	alert: vi.fn()
+	speechSynthesis: { speak: vi.fn(), cancel: vi.fn(), getVoices: vi.fn().mockReturnValue([]) }
 } as any;
-
-globalThis.alert = vi.fn();
+globalThis.localStorage = {
+	getItem: () => null,
+	setItem: () => {},
+	clear: () => {},
+	removeItem: () => {},
+	key: () => null,
+	length: 0
+};
 globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
 	text: string;
 	lang = '';
@@ -35,155 +37,106 @@ globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
 	onstart: (() => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: (() => void) | null = null;
-
-	constructor(text: string) {
-		this.text = text;
-	}
+	constructor(text: string) { this.text = text; }
 } as any;
 
 describe('VoiceStore', () => {
-	let mockStart: any;
-	let mockStop: any;
-	let mockAbort: any;
-
 	beforeEach(() => {
-		mockStart = vi.fn();
-		mockStop = vi.fn();
-		mockAbort = vi.fn();
-
-		function MockSpeechRecognition(this: any) {
-			this.start = mockStart;
-			this.stop = mockStop;
-			this.abort = mockAbort;
-			this.continuous = false;
-			this.interimResults = false;
-			this.lang = 'en-US';
-			this.onstart = null;
-			this.onend = null;
-			this.onerror = null;
-			this.onresult = null;
-		}
-
-		(window as any).SpeechRecognition = MockSpeechRecognition;
-		(window as any).webkitSpeechRecognition = undefined;
-
-		// Mock alert
-		(window as any).alert = vi.fn();
-		(globalThis as any).alert = (window as any).alert;
+		vi.clearAllMocks();
+		mockGetUserMedia = vi.fn().mockResolvedValue(mockStream);
+		Object.defineProperty(globalThis, 'navigator', {
+			configurable: true,
+			value: { language: 'en-US', mediaDevices: { getUserMedia: mockGetUserMedia } }
+		});
+		(globalThis as any).MediaRecorder = MockMediaRecorder;
+		globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ text: 'Recorded words' }) }) as any;
 	});
 
 	afterEach(() => {
-		delete (window as any).SpeechRecognition;
+		delete (globalThis as any).MediaRecorder;
 	});
 
-	it('should support speech recognition if window.SpeechRecognition exists', async () => {
+	it('uses MediaRecorder when microphone recording is available', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
 		expect(store.isSupported).toBe(true);
+		await store.startListening();
+		expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true });
+		expect(store.recognitionState).toBe('listening');
+		expect((store as any).recorder).toBeInstanceOf(MockMediaRecorder);
 	});
 
-	it('should use Indonesian recognition by default and honor an explicit response language', async () => {
+	it('posts the stopped recording and exposes an editable transcript', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
-		const { settingsStore } = await import('../lib/stores/settings.svelte');
-		settingsStore.setResponseLanguage('id');
 		const store = new VoiceStore();
-		expect(store['recognition'].lang).toBe('id-ID');
-		settingsStore.setResponseLanguage('en');
-		store.startListening();
-		expect(store['recognition'].lang).toBe('en-US');
+		const onTranscriptChange = vi.fn();
+		store.onTranscriptChange = onTranscriptChange;
+		await store.startListening();
+		const recorder = (store as any).recorder as MockMediaRecorder;
+		store.stopListening();
+		recorder.ondataavailable?.({ data: new Blob(['audio'], { type: 'audio/webm' }) });
+		await recorder.onstop?.();
+		expect(globalThis.fetch).toHaveBeenCalledWith('/api/transcribe', expect.objectContaining({ method: 'POST' }));
+		expect(store.transcript).toBe('Recorded words');
+		expect(onTranscriptChange).toHaveBeenCalledWith('Recorded words');
+		expect(mockTrackStop).toHaveBeenCalled();
 	});
 
-	it('keeps the transcript available for review after recognition ends', async () => {
+	it('reports a microphone permission failure without leaving the recorder stuck', async () => {
+		mockGetUserMedia.mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
-		const onSpeechEnd = vi.fn();
-		store.onSpeechEnd = onSpeechEnd;
-		store.startListening();
-		store['recognition'].onresult({
-			resultIndex: 0,
-			results: [[{ transcript: 'Please keep this as a draft.' }]]
-		});
-		store['recognition'].onend();
-		expect(store.transcript).toBe('Please keep this as a draft.');
-		expect(onSpeechEnd).toHaveBeenCalledTimes(1);
+		await store.startListening();
+		expect(store.isListening).toBe(false);
+		expect(store.recognitionState).toBe('idle');
+		expect(store.errorMessage).toContain('Microphone access was denied');
 	});
 
-	it('limits spoken output to a concise, readable excerpt', async () => {
+	it('keeps the full reply available for speech output', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
-		store.speak('One. Two. Three. Four. Five.');
+		store.speak('One. Two. Three. Four.');
 		const utterance = (window.speechSynthesis.speak as any).mock.calls.at(-1)[0];
-		expect(utterance.text).toBe('One. Two. Three.');
+		expect(utterance.text).toBe('One. Two. Three. Four.');
 	});
 
-	it('should transition to starting state when startListening is called', async () => {
+	it('uses the same-origin local speech route for English when audio playback is available', async () => {
+		class MockAudio {
+			onended: (() => void) | null = null;
+			onerror: (() => void) | null = null;
+			currentTime = 0;
+			play = vi.fn().mockResolvedValue(undefined);
+			pause = vi.fn();
+			constructor(public source: string) {}
+		}
+		(globalThis as any).Audio = MockAudio;
+		Object.assign(globalThis.URL, {
+			createObjectURL: vi.fn().mockReturnValue('blob:moonday-audio'),
+			revokeObjectURL: vi.fn()
+		});
+		globalThis.fetch = vi.fn().mockResolvedValue({
+			ok: true,
+			blob: async () => new Blob(['audio'], { type: 'audio/wav' })
+		}) as any;
+
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
-		store.startListening();
-		expect(store.recognitionState).toBe('starting');
-		expect(store.isListening).toBe(true);
-		expect(mockStart).toHaveBeenCalledTimes(1);
+		await store.speak('Hello from local MOONDAY.');
+
+		expect(globalThis.fetch).toHaveBeenCalledWith(
+			'/api/speech',
+			expect.objectContaining({ method: 'POST' })
+		);
+		expect((store as any).currentAudio).toBeInstanceOf(MockAudio);
+		delete (globalThis as any).Audio;
 	});
 
-	it('should transition to listening state on start callback', async () => {
+	it('does not report expected speech cancellation as a playback failure', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
-		store.startListening();
-		// Simulate onstart
-		store['recognition'].onstart();
-		expect(store.recognitionState).toBe('listening');
-		expect(store.isListening).toBe(true);
-	});
-
-	it('should handle double click (immediate stop during starting) gracefully by aborting', async () => {
-		const { VoiceStore } = await import('../lib/stores/voice.svelte');
-		const store = new VoiceStore();
-		store.startListening();
-		expect(store.recognitionState).toBe('starting');
-
-		// Double click calls stopListening before onstart
-		store.stopListening();
-		expect(store.recognitionState).toBe('stopping');
-		expect(mockAbort).toHaveBeenCalledTimes(1);
-		expect(mockStop).not.toHaveBeenCalled();
-	});
-
-	it('should call stop() when stopping during listening state', async () => {
-		const { VoiceStore } = await import('../lib/stores/voice.svelte');
-		const store = new VoiceStore();
-		store.startListening();
-		store['recognition'].onstart();
-		expect(store.recognitionState).toBe('listening');
-
-		store.stopListening();
-		expect(store.recognitionState).toBe('stopping');
-		expect(mockStop).toHaveBeenCalledTimes(1);
-		expect(mockAbort).not.toHaveBeenCalled();
-	});
-
-	it('should handle permission-denied / not-allowed error', async () => {
-		const { VoiceStore } = await import('../lib/stores/voice.svelte');
-		const store = new VoiceStore();
-		store.startListening();
-
-		// Simulate error
-		store['recognition'].onerror({ error: 'not-allowed' });
-		expect(store.recognitionState).toBe('idle');
-		expect(store.isListening).toBe(false);
-		expect(store.errorMessage).toContain('Microphone access denied');
-		expect(window.alert).toHaveBeenCalled();
-	});
-
-	it('should handle no-speech error', async () => {
-		const { VoiceStore } = await import('../lib/stores/voice.svelte');
-		const store = new VoiceStore();
-		store.startListening();
-
-		// Simulate error
-		store['recognition'].onerror({ error: 'no-speech' });
-		expect(store.recognitionState).toBe('idle');
-		expect(store.isListening).toBe(false);
-		expect(store.errorMessage).toContain('No speech was detected');
-		expect(window.alert).toHaveBeenCalled();
+		store.speak('Hello there.');
+		const utterance = (window.speechSynthesis.speak as any).mock.calls.at(-1)[0];
+		utterance.onerror({ error: 'canceled' });
+		expect(store.errorMessage).toBeNull();
 	});
 });

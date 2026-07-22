@@ -25,7 +25,11 @@
 		"db:up": "docker container inspect moonday-postgres >/dev/null 2>&1 && docker start moonday-postgres || docker compose -f docker-compose.postgres.yml up -d",
 		"db:down": "docker container inspect moonday-postgres >/dev/null 2>&1 && docker stop moonday-postgres || docker compose -f docker-compose.postgres.yml down",
 		"search:up": "docker compose -f docker-compose.searxng.yml up -d",
-		"search:down": "docker compose -f docker-compose.searxng.yml down"
+		"search:down": "docker compose -f docker-compose.searxng.yml down",
+		"tts:up": "docker compose -f docker-compose.kokoro.yml up -d --build",
+		"tts:up:gpu": "docker compose -f docker-compose.kokoro.yml -f docker-compose.kokoro.gpu.yml up -d --build",
+		"tts:down": "docker compose -f docker-compose.kokoro.yml down",
+		"tts:logs": "docker compose -f docker-compose.kokoro.yml logs -f kokoro-tts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
