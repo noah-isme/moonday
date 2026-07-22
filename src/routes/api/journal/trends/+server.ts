@@ -30,6 +30,14 @@ export const GET: RequestHandler = async () => {
 		return json(logs);
 	} catch (error: any) {
 		console.error('Error in GET /api/journal/trends:', error);
-		return json({ error: { code: 'DATABASE_ERROR', message: 'A database error occurred while fetching trends.' } }, { status: 500 });
+		return json(
+			{
+				error: {
+					code: 'DATABASE_ERROR',
+					message: 'A database error occurred while fetching trends.'
+				}
+			},
+			{ status: 500 }
+		);
 	}
 };

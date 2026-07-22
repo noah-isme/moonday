@@ -35,7 +35,7 @@ function getKey(): string {
 	}
 
 	let key = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
-	
+
 	// Fallback to a default key in test environment if none is configured
 	if (!key && process.env.NODE_ENV === 'test') {
 		key = 'abcdefghijklmnopqrstuvwxyz123456';
@@ -79,7 +79,7 @@ export function decrypt(hash: string): string {
 		return hash;
 	}
 	const [ivHex, authTagHex, encryptedTextHex] = parts;
-	
+
 	// Basic validation of standard lengths
 	if (ivHex.length !== 24 || authTagHex.length !== 32) {
 		return hash;

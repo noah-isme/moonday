@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { webSearch, fetchFromSearXNG, fetchFromTavily, fetchFromBrave } from '../lib/server/tools/browser';
+import {
+	webSearch,
+	fetchFromSearXNG,
+	fetchFromTavily,
+	fetchFromBrave
+} from '../lib/server/tools/browser';
 
 vi.mock('$env/dynamic/private', () => {
 	return {
@@ -62,9 +67,7 @@ describe('Browser Tools Search Integration', () => {
 				ok: true,
 				status: 200,
 				json: async () => ({
-					results: [
-						{ title: 'Tavily Hit', url: 'https://tavily.com/1', content: 'Tavily text' }
-					]
+					results: [{ title: 'Tavily Hit', url: 'https://tavily.com/1', content: 'Tavily text' }]
 				})
 			} as Response);
 
@@ -88,9 +91,7 @@ describe('Browser Tools Search Integration', () => {
 				status: 200,
 				json: async () => ({
 					web: {
-						results: [
-							{ title: 'Brave Hit', url: 'https://brave.com/1', description: 'Brave text' }
-						]
+						results: [{ title: 'Brave Hit', url: 'https://brave.com/1', description: 'Brave text' }]
 					}
 				})
 			} as Response);

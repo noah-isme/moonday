@@ -27,7 +27,8 @@ export type GenerateChatResult = {
 	latencyMs?: number;
 };
 
-export type ChatStreamChunk = string | { type: 'token'; content: string } | { type: 'status'; message: string };
+export type ChatStreamChunk =
+	string | { type: 'token'; content: string } | { type: 'status'; message: string };
 
 export interface AIProvider {
 	name: AIProviderName;

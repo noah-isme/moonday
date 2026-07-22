@@ -80,7 +80,8 @@ async function getCharacterProfile(characterId?: string) {
 			},
 			{
 				name: 'Sarcastic MOONDAY',
-				description: 'Brutally honest, highly analytical, sharp-tongued, and roasts user flaws without corporate sugarcoating. Never mean just to be toxic, but communicates brutal truth with wit and Gen Z sarcasm.',
+				description:
+					'Brutally honest, highly analytical, sharp-tongued, and roasts user flaws without corporate sugarcoating. Never mean just to be toxic, but communicates brutal truth with wit and Gen Z sarcasm.',
 				tone: 'sarcastic',
 				traits: {
 					warmth: 4,
@@ -177,7 +178,8 @@ const chatRequestSchema = z.object({
 	stream: z.boolean().optional(),
 	reroll: z.boolean().optional(),
 	editId: z.string().uuid().optional(),
-	enableWebSearch: z.boolean().optional()
+	enableWebSearch: z.boolean().optional(),
+	enableMemoryExtraction: z.boolean().optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -228,7 +230,17 @@ export const POST: RequestHandler = async (event) => {
 
 		// 2. Validate with Zod
 		const validated = chatRequestSchema.parse(body);
-		const { conversationId, message, characterId, provider: requestProvider, stream, reroll, editId, enableWebSearch } = validated;
+		const {
+			conversationId,
+			message,
+			characterId,
+			provider: requestProvider,
+			stream,
+			reroll,
+			editId,
+			enableWebSearch,
+			enableMemoryExtraction
+		} = validated;
 
 		// 3. Rate Limit Check
 		let ip = 'unknown';
@@ -300,6 +312,12 @@ export const POST: RequestHandler = async (event) => {
 					{ status: 404 }
 				);
 			}
+			if (editedMessage.conversationId !== conversation.id || editedMessage.role !== 'user') {
+				return json(
+					{ error: { code: 'NOT_FOUND', message: 'Message to edit not found' } },
+					{ status: 404 }
+				);
+			}
 
 			// Run emotion classification on the new message content
 			emotionAnalysis = await classifyEmotion(message);
@@ -317,7 +335,7 @@ export const POST: RequestHandler = async (event) => {
 					})
 					.where(eq(messages.id, editId))
 					.returning();
-				
+
 				userMessageRecord = updatedMsg;
 
 				const messagesToDelete = await tx
@@ -332,9 +350,7 @@ export const POST: RequestHandler = async (event) => {
 				const deletedMessageIds = messagesToDelete.map((m) => m.id);
 
 				if (deletedMessageIds.length > 0) {
-					await tx
-						.delete(memories)
-						.where(inArray(memories.sourceMessageId, deletedMessageIds));
+					await tx.delete(memories).where(inArray(memories.sourceMessageId, deletedMessageIds));
 				}
 
 				// Delete all messages in the conversation created after createdAt of the edited message
@@ -374,7 +390,10 @@ export const POST: RequestHandler = async (event) => {
 			userMessageRecord = lastUserMessage;
 			emotionAnalysis = {
 				primaryEmotion: lastUserMessage.emotionLabel || 'neutral',
-				moodScore: lastUserMessage.moodScore !== null && lastUserMessage.moodScore !== undefined ? lastUserMessage.moodScore : 0,
+				moodScore:
+					lastUserMessage.moodScore !== null && lastUserMessage.moodScore !== undefined
+						? lastUserMessage.moodScore
+						: 0,
 				shouldStoreMemory: false
 			};
 		} else {
@@ -461,8 +480,6 @@ export const POST: RequestHandler = async (event) => {
 			}))
 		];
 
-		console.log('LLM INPUT MESSAGES:', JSON.stringify(chatMessages, null, 2));
-
 		// 12. Invoke LLM through AI Router
 		const shouldStream = stream !== false;
 
@@ -485,6 +502,7 @@ export const POST: RequestHandler = async (event) => {
 								`data: ${JSON.stringify({
 									type: 'start',
 									conversationId: conversation.id,
+									userMessageId: userMessageRecord.id,
 									emotion: {
 										primaryEmotion: emotionAnalysis.primaryEmotion,
 										moodScore: emotionAnalysis.moodScore
@@ -554,12 +572,18 @@ export const POST: RequestHandler = async (event) => {
 							requestType: 'daily_chat'
 						});
 
+						let assistantMessageId = '';
 						if (reroll) {
 							await db.transaction(async (tx) => {
 								const [lastAssistantMessage] = await tx
 									.select()
 									.from(messages)
-									.where(and(eq(messages.conversationId, conversation.id), eq(messages.role, 'assistant')))
+									.where(
+										and(
+											eq(messages.conversationId, conversation.id),
+											eq(messages.role, 'assistant')
+										)
+									)
 									.orderBy(desc(messages.createdAt))
 									.limit(1);
 
@@ -567,13 +591,17 @@ export const POST: RequestHandler = async (event) => {
 									await tx.delete(messages).where(eq(messages.id, lastAssistantMessage.id));
 								}
 
-								await tx.insert(messages).values({
-									conversationId: conversation.id,
-									role: 'assistant',
-									content: fullContent,
-									provider: providerVal,
-									model: modelVal
-								});
+								const [assistantMessage] = await tx
+									.insert(messages)
+									.values({
+										conversationId: conversation.id,
+										role: 'assistant',
+										content: fullContent,
+										provider: providerVal,
+										model: modelVal
+									})
+									.returning({ id: messages.id });
+								assistantMessageId = assistantMessage.id;
 
 								await tx
 									.update(conversations)
@@ -586,18 +614,26 @@ export const POST: RequestHandler = async (event) => {
 							});
 						} else {
 							// Save assistant message
-							await db.insert(messages).values({
-								conversationId: conversation.id,
-								role: 'assistant',
-								content: fullContent,
-								provider: providerVal,
-								model: modelVal
-							});
+							const [assistantMessage] = await db
+								.insert(messages)
+								.values({
+									conversationId: conversation.id,
+									role: 'assistant',
+									content: fullContent,
+									provider: providerVal,
+									model: modelVal
+								})
+								.returning({ id: messages.id });
+							assistantMessageId = assistantMessage.id;
 						}
 
 						// Run memory extraction if criteria met
 						let savedMemory = false;
-						if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
+						if (
+							enableMemoryExtraction !== false &&
+							env.ENABLE_MEMORY_EXTRACTION !== 'false' &&
+							emotionAnalysis.shouldStoreMemory
+						) {
 							try {
 								const context = historyRecords.map((h) => ({
 									role: h.role as 'system' | 'user' | 'assistant',
@@ -626,7 +662,8 @@ export const POST: RequestHandler = async (event) => {
 							encoder.encode(
 								`data: ${JSON.stringify({
 									type: 'done',
-									savedMemory
+									savedMemory,
+									assistantMessageId
 								})}\n\n`
 							)
 						);
@@ -696,7 +733,9 @@ export const POST: RequestHandler = async (event) => {
 					const [lastAssistantMessage] = await tx
 						.select()
 						.from(messages)
-						.where(and(eq(messages.conversationId, conversation.id), eq(messages.role, 'assistant')))
+						.where(
+							and(eq(messages.conversationId, conversation.id), eq(messages.role, 'assistant'))
+						)
 						.orderBy(desc(messages.createdAt))
 						.limit(1);
 
@@ -734,7 +773,11 @@ export const POST: RequestHandler = async (event) => {
 
 			// Run memory extraction if criteria met
 			let savedMemory = false;
-			if (env.ENABLE_MEMORY_EXTRACTION !== 'false' && emotionAnalysis.shouldStoreMemory) {
+			if (
+				enableMemoryExtraction !== false &&
+				env.ENABLE_MEMORY_EXTRACTION !== 'false' &&
+				emotionAnalysis.shouldStoreMemory
+			) {
 				try {
 					const context = historyRecords.map((h) => ({
 						role: h.role as 'system' | 'user' | 'assistant',

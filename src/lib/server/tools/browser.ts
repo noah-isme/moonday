@@ -29,7 +29,7 @@ export async function fetchFromSearXNG(query: string): Promise<SearchResult[]> {
 		const res = await fetch(url, {
 			signal: controller.signal,
 			headers: {
-				'Accept': 'application/json'
+				Accept: 'application/json'
 			}
 		});
 
@@ -101,7 +101,7 @@ export async function fetchFromBrave(query: string): Promise<SearchResult[]> {
 
 	const res = await fetch(url.toString(), {
 		headers: {
-			'Accept': 'application/json',
+			Accept: 'application/json',
 			'X-Subscription-Token': braveKey
 		}
 	});
@@ -188,7 +188,7 @@ export async function deepRead(url: string): Promise<string> {
 		}
 
 		const text = await res.text();
-		
+
 		// Truncate if exceeds 6,000 characters
 		if (text.length > 6000) {
 			return text.substring(0, 6000) + '\n\n[Content truncated to 6000 characters...]';
@@ -208,7 +208,8 @@ export const searchToolsSpecification = [
 		type: 'function',
 		function: {
 			name: 'web_search',
-			description: 'Search the web for up-to-date information on a given query or topic. Returns top titles, URLs, and snippets.',
+			description:
+				'Search the web for up-to-date information on a given query or topic. Returns top titles, URLs, and snippets.',
 			parameters: {
 				type: 'object',
 				properties: {
@@ -225,7 +226,8 @@ export const searchToolsSpecification = [
 		type: 'function',
 		function: {
 			name: 'deep_read',
-			description: 'Read the full webpage content from a specific URL, returned in clean markdown format.',
+			description:
+				'Read the full webpage content from a specific URL, returned in clean markdown format.',
 			parameters: {
 				type: 'object',
 				properties: {

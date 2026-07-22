@@ -33,9 +33,9 @@
 	<form onsubmit={handleSubmit} class="space-y-6">
 		<!-- Mood Emoji Selection Grid -->
 		<div>
-			<label class="block text-xs font-semibold text-slate-gray uppercase tracking-wider mb-3"
-				>Select Current Mood</label
-			>
+			<p class="block text-xs font-semibold text-slate-gray uppercase tracking-wider mb-3">
+				Select Current Mood
+			</p>
 			<div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
 				{#each MOODS as mood}
 					<button

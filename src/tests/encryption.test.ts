@@ -41,7 +41,7 @@ describe('Encryption Utilities', () => {
 
 	it('should fail decryption if a wrong ENCRYPTION_KEY is used', () => {
 		const plaintext = 'Super secret key test';
-		
+
 		// Encrypt with default/normal key
 		const ciphertext = encrypt(plaintext);
 

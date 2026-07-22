@@ -441,9 +441,9 @@
 
 					<!-- Quick companion info -->
 					<div class="space-y-1">
-						<label class="block text-xs font-semibold text-slate-gray uppercase tracking-wider"
-							>Active companion</label
-						>
+						<p class="block text-xs font-semibold text-slate-gray uppercase tracking-wider">
+							Active companion
+						</p>
 						<div
 							class="p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl flex items-center justify-between"
 						>
@@ -462,6 +462,8 @@
 						</div>
 						<button
 							onclick={() => settingsStore.toggleMemoryExtraction()}
+							aria-label="Toggle memory extraction"
+							aria-pressed={settingsStore.memoryExtractionEnabled}
 							class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.memoryExtractionEnabled
 								? 'bg-violet-glow'
 								: 'bg-slate-gray/30'}"

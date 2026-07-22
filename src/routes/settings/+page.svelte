@@ -36,9 +36,12 @@
 		if (style.sarcasmLevel) {
 			const levelStr = String(style.sarcasmLevel).toLowerCase();
 			if (levelStr === 'none' || levelStr === '0') sarcasmLevelNum = 0;
-			else if (levelStr.includes('mild') || levelStr === '1' || levelStr === '2') sarcasmLevelNum = 2;
-			else if (levelStr.includes('spicy') || levelStr === '3' || levelStr === '4') sarcasmLevelNum = 4;
-			else if (levelStr.includes('unhinged') || levelStr.includes('brutal') || levelStr === '5') sarcasmLevelNum = 5;
+			else if (levelStr.includes('mild') || levelStr === '1' || levelStr === '2')
+				sarcasmLevelNum = 2;
+			else if (levelStr.includes('spicy') || levelStr === '3' || levelStr === '4')
+				sarcasmLevelNum = 4;
+			else if (levelStr.includes('unhinged') || levelStr.includes('brutal') || levelStr === '5')
+				sarcasmLevelNum = 5;
 		}
 	});
 
@@ -81,22 +84,24 @@
 	<section
 		class="bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-3xl p-5 md:p-6 space-y-4 shadow-xl"
 	>
-		<h2 class="text-sm font-bold text-soft-white uppercase tracking-wider">
-			User Profile
-		</h2>
+		<h2 class="text-sm font-bold text-soft-white uppercase tracking-wider">User Profile</h2>
 		<p class="text-xs text-slate-gray">
 			Customize your profile details and specify your communication style preferences.
 		</p>
 
 		{#if form?.success}
-			<div class="p-3 bg-calm-green/10 border border-calm-green/20 rounded-xl text-xs text-calm-green flex items-center gap-2">
+			<div
+				class="p-3 bg-calm-green/10 border border-calm-green/20 rounded-xl text-xs text-calm-green flex items-center gap-2"
+			>
 				<span>✓</span>
 				<span>Profile updated successfully!</span>
 			</div>
 		{/if}
 
 		{#if form?.error?._form}
-			<div class="p-3 bg-soft-red/10 border border-soft-red/20 rounded-xl text-xs text-soft-red flex items-center gap-2">
+			<div
+				class="p-3 bg-soft-red/10 border border-soft-red/20 rounded-xl text-xs text-soft-red flex items-center gap-2"
+			>
 				<span>⚠️</span>
 				<span>{form.error._form}</span>
 			</div>
@@ -159,8 +164,7 @@
 					disabled={isSubmitting}
 					value={form?.values?.bio ?? data.profile.bio ?? ''}
 					class="w-full p-3 text-xs bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-xl text-soft-white focus:outline-none focus:ring-2 focus:ring-violet-glow/50 focus:border-violet-glow disabled:opacity-55 transition-all resize-none"
-					placeholder="Senior Software Architect..."
-				></textarea>
+					placeholder="Senior Software Architect..."></textarea>
 				{#if form?.error?.bio}
 					<span class="text-[10px] text-soft-red font-semibold">{form.error.bio[0]}</span>
 				{/if}
@@ -168,8 +172,10 @@
 
 			<!-- Communication Style GUI Form -->
 			<div class="space-y-4 p-4 bg-deep-navy/30 border border-slate-gray/5 rounded-2xl">
-				<h3 class="text-xs font-bold text-soft-white uppercase tracking-wider">Communication Style</h3>
-				
+				<h3 class="text-xs font-bold text-soft-white uppercase tracking-wider">
+					Communication Style
+				</h3>
+
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<!-- Tone Dropdown -->
 					<div class="flex flex-col gap-1.5">
@@ -205,7 +211,9 @@
 					<!-- Sarcasm Level Slider -->
 					<div class="flex flex-col gap-1.5">
 						<div class="flex justify-between items-center">
-							<label for="sarcasmLevelRange" class="text-xs font-semibold text-pale-silver">Sarcasm Level</label>
+							<label for="sarcasmLevelRange" class="text-xs font-semibold text-pale-silver"
+								>Sarcasm Level</label
+							>
 							<span class="text-xs font-bold text-violet-glow font-mono">{sarcasmLabel}</span>
 						</div>
 						<div class="flex items-center gap-3 py-1">
@@ -224,10 +232,16 @@
 					</div>
 				</div>
 
-				<input type="hidden" name="communicationStyle" value={JSON.stringify({ tone, formality, sarcasmLevel })} />
+				<input
+					type="hidden"
+					name="communicationStyle"
+					value={JSON.stringify({ tone, formality, sarcasmLevel })}
+				/>
 
 				{#if form?.error?.communicationStyle}
-					<span class="text-[10px] text-soft-red font-semibold">{form.error.communicationStyle[0]}</span>
+					<span class="text-[10px] text-soft-red font-semibold"
+						>{form.error.communicationStyle[0]}</span
+					>
 				{/if}
 			</div>
 
@@ -316,6 +330,8 @@
 				</div>
 				<button
 					onclick={() => settingsStore.toggleVoiceInput()}
+					aria-label="Toggle voice dictation"
+					aria-pressed={settingsStore.voiceInputEnabled}
 					class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.voiceInputEnabled
 						? 'bg-cyan-glow'
 						: 'bg-slate-gray/30'}"
@@ -340,6 +356,8 @@
 				</div>
 				<button
 					onclick={() => settingsStore.toggleVoiceOutput()}
+					aria-label="Toggle speech synthesis"
+					aria-pressed={settingsStore.voiceOutputEnabled}
 					class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.voiceOutputEnabled
 						? 'bg-violet-glow'
 						: 'bg-slate-gray/30'}"

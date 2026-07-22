@@ -1,5 +1,10 @@
 import { env } from '$env/dynamic/private';
-import type { AIProvider, GenerateChatOptions, GenerateChatResult, ChatStreamChunk } from '../types';
+import type {
+	AIProvider,
+	GenerateChatOptions,
+	GenerateChatResult,
+	ChatStreamChunk
+} from '../types';
 import { searchToolsSpecification, executeTool } from '../../tools/browser';
 
 async function handleResponseError(response: Response): Promise<never> {
@@ -65,7 +70,7 @@ export class GroqProvider implements AIProvider {
 		try {
 			const body: any = {
 				model,
-				messages: requestMessages.map(m => ({
+				messages: requestMessages.map((m) => ({
 					role: m.role,
 					content: m.content,
 					name: m.name,
@@ -143,7 +148,7 @@ export class GroqProvider implements AIProvider {
 					},
 					body: JSON.stringify({
 						model,
-						messages: requestMessages.map(m => ({
+						messages: requestMessages.map((m) => ({
 							role: m.role,
 							content: m.content,
 							name: m.name,
@@ -217,7 +222,7 @@ export class GroqProvider implements AIProvider {
 					},
 					body: JSON.stringify({
 						model,
-						messages: requestMessages.map(m => ({
+						messages: requestMessages.map((m) => ({
 							role: m.role,
 							content: m.content,
 							name: m.name,
@@ -336,7 +341,7 @@ export class GroqProvider implements AIProvider {
 				},
 				body: JSON.stringify({
 					model,
-					messages: requestMessages.map(m => ({
+					messages: requestMessages.map((m) => ({
 						role: m.role,
 						content: m.content,
 						name: m.name,
@@ -473,7 +478,7 @@ export class GroqProvider implements AIProvider {
 						},
 						body: JSON.stringify({
 							model,
-							messages: requestMessages.map(m => ({
+							messages: requestMessages.map((m) => ({
 								role: m.role,
 								content: m.content,
 								name: m.name,
@@ -574,7 +579,6 @@ export class GroqProvider implements AIProvider {
 					outputTokens: completionTokens,
 					latencyMs
 				};
-
 			} else {
 				// No tool calls, output the content of the first response
 				const content = message?.content || '';

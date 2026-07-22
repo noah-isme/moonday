@@ -24,14 +24,6 @@ export interface Conversation {
 	updatedAt: string;
 }
 
-const MOCK_REPLIES = [
-	"I hear you. It sounds like you're carrying a lot on your shoulders today. What's the smallest step you could take to feel a bit more in control?",
-	"That's really interesting. It seems like there's a pattern of feeling motivated early on, but then getting overwhelmed. Let's look at why that happens.",
-	"I'm here to listen. Sometimes, naming the feeling is the hardest part. Would you say it's more like tiredness, or is there some frustration mixed in?",
-	"The moon reflects your light, and I reflect your thoughts. Let's break down that project so it doesn't feel like a mountain.",
-	'It is okay to not have it all figured out. Today is just one page of a larger book. Tell me more about what went well, even if it was tiny.'
-];
-
 export class ChatStore {
 	conversations = $state<Conversation[]>([]);
 	activeId = $state<string | null>(null);
@@ -76,13 +68,67 @@ export class ChatStore {
 				}
 			}
 
-			// If there are no conversations, create a default one
-			if (this.conversations.length === 0) {
-				this.createNewConversation();
-			} else {
+			if (this.conversations.length > 0) {
 				this.activeId = this.conversations[0].id;
+			} else {
+				this.createNewConversation();
+			}
+
+			void this.hydrateFromServer();
+		}
+	}
+
+	private async hydrateFromServer() {
+		try {
+			const response = await fetch('/api/conversations');
+			if (!response.ok) throw new Error('Unable to load conversations');
+
+			const data = (await response.json()) as {
+				conversations: Conversation[];
+				messages: Record<string, ChatMessage[]>;
+			};
+			if (data.conversations.length > 0) {
+				this.conversations = data.conversations;
+				this.messages = data.messages;
+				this.activeId = data.conversations[0].id;
+				this.saveToLocalStorage();
+			}
+		} catch (error) {
+			console.warn('Unable to load saved conversations; using local chat history.', error);
+		}
+	}
+
+	private adoptServerIds(
+		localConversationId: string,
+		conversationId: string,
+		userMessageId: string
+	) {
+		if (localConversationId !== conversationId) {
+			const conversation = this.conversations.find((item) => item.id === localConversationId);
+			if (conversation) conversation.id = conversationId;
+			this.messages[conversationId] = this.messages[localConversationId] || [];
+			delete this.messages[localConversationId];
+			if (this.activeId === localConversationId) this.activeId = conversationId;
+		}
+
+		const currentMessages = this.messages[conversationId] || [];
+		for (let index = currentMessages.length - 1; index >= 0; index--) {
+			if (currentMessages[index].role === 'user') {
+				currentMessages[index] = { ...currentMessages[index], id: userMessageId };
+				this.messages[conversationId] = [...currentMessages];
+				break;
 			}
 		}
+	}
+
+	private async getResponseError(response: Response): Promise<string> {
+		try {
+			const payload = (await response.json()) as { error?: { message?: string } };
+			if (payload.error?.message) return payload.error.message;
+		} catch {
+			// A non-JSON response still gets a clear status-based error below.
+		}
+		return `MOONDAY could not save or process this message (HTTP ${response.status}).`;
 	}
 
 	saveToLocalStorage() {
@@ -177,7 +223,7 @@ export class ChatStore {
 		uiStore.setMoonState('thinking');
 
 		const assistantMsgId = crypto.randomUUID();
-		let startedStreaming = false;
+		const localConversationId = this.activeId;
 
 		try {
 			// Call api route /api/chat
@@ -190,12 +236,13 @@ export class ChatStore {
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
 					stream: true,
-					enableWebSearch: this.isWebSearchEnabled
+					enableWebSearch: this.isWebSearchEnabled,
+					enableMemoryExtraction: settingsStore.memoryExtractionEnabled
 				})
 			});
 
 			if (!response.ok) {
-				throw new Error('API server returned error');
+				throw new Error(await this.getResponseError(response));
 			}
 
 			const reader = response.body?.getReader();
@@ -205,7 +252,6 @@ export class ChatStore {
 
 			this.isStreaming = true;
 			this.isThinking = false;
-			startedStreaming = true;
 
 			// Add assistant message shell
 			const assistantMsg: ChatMessage = {
@@ -252,6 +298,7 @@ export class ChatStore {
 							try {
 								const data = JSON.parse(jsonStr);
 								if (data.type === 'start') {
+									this.adoptServerIds(localConversationId, data.conversationId, data.userMessageId);
 									let emotionLabel = 'neutral';
 									let moodScore = 0;
 									if (data.emotion) {
@@ -275,6 +322,9 @@ export class ChatStore {
 									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
+									if (data.assistantMessageId) {
+										updateMessage({ id: data.assistantMessageId });
+									}
 									const currentMsgs = this.messages[this.activeId!] || [];
 									const msg = currentMsgs.find((m) => m.id === assistantMsgId);
 									const finalEmotionLabel = msg?.emotionLabel;
@@ -317,42 +367,8 @@ export class ChatStore {
 			}
 		} catch (err) {
 			uiStore.setMoonState('idle');
-			console.warn('API error, falling back to local simulation:', err);
-
-			if (startedStreaming) {
-				this.error = err instanceof Error ? err.message : 'Streaming interrupted.';
-				return;
-			}
-
-			// Fallback: Simulation of response
-			await new Promise((resolve) => setTimeout(resolve, 1500));
-
-			characterStore.activeCharacter.avatarState = 'speaking';
-			uiStore.setMoonState('speaking');
-
-			const randomReply = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
-			const mockEmotion = this.analyzeMockEmotion(content);
-
-			const assistantMsg: ChatMessage = {
-				id: assistantMsgId,
-				role: 'assistant',
-				content: randomReply,
-				emotionLabel: mockEmotion.label,
-				moodScore: mockEmotion.score,
-				createdAt: new Date().toISOString()
-			};
-
-			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
-
-			const conv = this.conversations.find((c) => c.id === this.activeId);
-			if (conv) {
-				conv.lastEmotionLabel = mockEmotion.label;
-				conv.lastMoodScore = mockEmotion.score;
-				conv.updatedAt = new Date().toISOString();
-			}
-
-			this.updateAvatarFromEmotion(mockEmotion.label);
-			uiStore.setMoonState('idle');
+			console.error('Chat request failed:', err);
+			this.error = err instanceof Error ? err.message : 'Unable to send message. Please try again.';
 		} finally {
 			this.isThinking = false;
 			this.saveToLocalStorage();
@@ -383,7 +399,6 @@ export class ChatStore {
 		uiStore.setMoonState('thinking');
 
 		const assistantMsgId = crypto.randomUUID();
-		let startedStreaming = false;
 
 		try {
 			const response = await fetch('/api/chat', {
@@ -396,12 +411,13 @@ export class ChatStore {
 					provider: settingsStore.provider,
 					stream: true,
 					editId: messageId,
-					enableWebSearch: this.isWebSearchEnabled
+					enableWebSearch: this.isWebSearchEnabled,
+					enableMemoryExtraction: settingsStore.memoryExtractionEnabled
 				})
 			});
 
 			if (!response.ok) {
-				throw new Error('API server returned error');
+				throw new Error(await this.getResponseError(response));
 			}
 
 			const reader = response.body?.getReader();
@@ -411,7 +427,6 @@ export class ChatStore {
 
 			this.isStreaming = true;
 			this.isThinking = false;
-			startedStreaming = true;
 
 			// Add assistant message shell
 			const assistantMsg: ChatMessage = {
@@ -571,8 +586,6 @@ export class ChatStore {
 		characterStore.activeCharacter.avatarState = 'thinking';
 		uiStore.setMoonState('thinking');
 
-		let startedStreaming = false;
-
 		try {
 			// Call api route /api/chat
 			const response = await fetch('/api/chat', {
@@ -585,12 +598,13 @@ export class ChatStore {
 					provider: settingsStore.provider,
 					stream: true,
 					reroll: true,
-					enableWebSearch: this.isWebSearchEnabled
+					enableWebSearch: this.isWebSearchEnabled,
+					enableMemoryExtraction: settingsStore.memoryExtractionEnabled
 				})
 			});
 
 			if (!response.ok) {
-				throw new Error('API server returned error');
+				throw new Error(await this.getResponseError(response));
 			}
 
 			const reader = response.body?.getReader();
@@ -600,7 +614,6 @@ export class ChatStore {
 
 			this.isStreaming = true;
 			this.isThinking = false;
-			startedStreaming = true;
 
 			// Reset the content of the assistant message
 			const assistantMsgId = assistantMsg.id;
@@ -717,7 +730,6 @@ export class ChatStore {
 		}
 	}
 
-
 	updateAvatarFromEmotion(emotion: string | undefined) {
 		if (!emotion) {
 			characterStore.activeCharacter.avatarState = 'idle';
@@ -747,29 +759,6 @@ export class ChatStore {
 				characterStore.activeCharacter.avatarState = 'idle';
 			}
 		}, 3000);
-	}
-
-	analyzeMockEmotion(text: string): { label: string; score: number } {
-		const lower = text.toLowerCase();
-		if (lower.includes('sad') || lower.includes('cry') || lower.includes('hurt')) {
-			return { label: 'sad', score: -4 };
-		}
-		if (lower.includes('stress') || lower.includes('overwhelm') || lower.includes('busy')) {
-			return { label: 'overwhelmed', score: -5 };
-		}
-		if (lower.includes('tired') || lower.includes('sleepy') || lower.includes('exhausted')) {
-			return { label: 'tired', score: -1 };
-		}
-		if (lower.includes('happy') || lower.includes('great') || lower.includes('glad')) {
-			return { label: 'happy', score: 4 };
-		}
-		if (lower.includes('anxious') || lower.includes('worry') || lower.includes('nervous')) {
-			return { label: 'anxious', score: -3 };
-		}
-		if (lower.includes('angry') || lower.includes('mad') || lower.includes('hate')) {
-			return { label: 'angry', score: -4 };
-		}
-		return { label: 'neutral', score: 0 };
 	}
 }
 

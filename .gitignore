@@ -26,3 +26,8 @@ vite.config.ts.timestamp-*
 .omo/
 settings.yml
 
+# Playwright
+/playwright-report
+/test-results
+
+

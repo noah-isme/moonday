@@ -310,6 +310,12 @@ describe('SvelteKit POST /api/chat SSE endpoint', () => {
 		expect(parsedEvents).toContainEqual(expect.objectContaining({ type: 'start' }));
 		expect(parsedEvents).toContainEqual({ type: 'token', content: 'Hello' });
 		expect(parsedEvents).toContainEqual({ type: 'token', content: ' world' });
-		expect(parsedEvents).toContainEqual({ type: 'done', savedMemory: expect.any(Boolean) });
+		expect(parsedEvents).toContainEqual(
+			expect.objectContaining({
+				type: 'done',
+				savedMemory: expect.any(Boolean),
+				assistantMessageId: expect.any(String)
+			})
+		);
 	});
 });

@@ -14,7 +14,7 @@ describe('ChatStore isRerolling and guard clauses', () => {
 	it('should not reroll if there is no active conversation or messages', async () => {
 		const store = new ChatStore();
 		store.activeId = null;
-		
+
 		const spyFetch = vi.spyOn(globalThis, 'fetch');
 		await store.rerollLastMessage();
 		expect(spyFetch).not.toHaveBeenCalled();

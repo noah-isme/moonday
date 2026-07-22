@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { db, client } from '../lib/server/db/client';
-import { users, conversations, messages, memories, memoryEmbeddings, characterProfiles } from '../lib/server/db/schema';
+import {
+	users,
+	conversations,
+	messages,
+	memories,
+	memoryEmbeddings,
+	characterProfiles
+} from '../lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { createMemoryWithEmbedding } from '../lib/server/db/queries/memories';
 import { POST as chatPOST } from '../routes/api/chat/+server';
@@ -25,7 +32,11 @@ describe('Memory Cascade and Truncation Sweeper Tests', () => {
 		}
 
 		// Clean up or find/create test user
-		const existingUser = await db.select().from(users).where(eq(users.displayName, 'Cascade Test User')).limit(1);
+		const existingUser = await db
+			.select()
+			.from(users)
+			.where(eq(users.displayName, 'Cascade Test User'))
+			.limit(1);
 		if (existingUser.length > 0) {
 			testUserId = existingUser[0].id;
 		} else {

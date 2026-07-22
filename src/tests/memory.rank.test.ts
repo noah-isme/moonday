@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateHybridScore, calculateRecencyScore, rankAndFilterMemories } from '../lib/server/memory/rank';
+import {
+	calculateHybridScore,
+	calculateRecencyScore,
+	rankAndFilterMemories
+} from '../lib/server/memory/rank';
 
 describe('Memory Ranking Logic', () => {
 	beforeEach(() => {

@@ -2,7 +2,13 @@ import { env } from '$env/dynamic/private';
 import { ClaudeProvider } from './providers/claude';
 import { DeepSeekProvider } from './providers/deepseek';
 import { GroqProvider } from './providers/groq';
-import type { AIProvider, AIProviderName, GenerateChatOptions, GenerateChatResult, ChatStreamChunk } from './types';
+import type {
+	AIProvider,
+	AIProviderName,
+	GenerateChatOptions,
+	GenerateChatResult,
+	ChatStreamChunk
+} from './types';
 
 export type RoutingTaskType =
 	'daily_chat' | 'memory_extract' | 'reflection_deep' | 'emotional_reason' | 'fallback';
@@ -77,6 +83,12 @@ export class AIRouter {
 		return this.providers[providerName];
 	}
 
+	private isProviderAvailable(name: AIProviderName): boolean {
+		if (name === 'deepseek') return !!env.DEEPSEEK_API_KEY;
+		if (name === 'claude') return !!env.ANTHROPIC_API_KEY;
+		return !!(process.env.GROQ_API_KEY || env.GROQ_API_KEY);
+	}
+
 	generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions & { stream: true }
@@ -95,17 +107,17 @@ export class AIRouter {
 	): Promise<GenerateChatResult | AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>> {
 		// Let options.provider override the routed provider if explicitly specified
 		let provider: AIProvider;
-		if (options.provider === 'groq') {
-			provider = this.providers['groq'];
-		} else if (options.provider) {
+		if (options.provider) {
+			if (!this.isProviderAvailable(options.provider)) {
+				throw new Error(`${options.provider.toUpperCase()}_API_KEY is not set`);
+			}
 			provider = this.providers[options.provider];
 		} else {
-			const defaultProvider = env.DEFAULT_AI_PROVIDER;
-			if (!defaultProvider || defaultProvider === 'groq') {
-				provider = this.providers['groq'];
-			} else {
-				provider = this.getProviderForTask(taskType);
-			}
+			const defaultProvider = env.DEFAULT_AI_PROVIDER as AIProviderName | undefined;
+			provider =
+				defaultProvider && this.isProviderAvailable(defaultProvider)
+					? this.providers[defaultProvider]
+					: this.getProviderForTask(taskType);
 		}
 
 		// Configure model based on provider if not specified in options

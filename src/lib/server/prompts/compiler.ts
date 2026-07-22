@@ -60,7 +60,7 @@ export const UserProfileSchema = z.object({
 export function compileUserPersona(profile: unknown): string {
 	const parsed = UserProfileSchema.parse(profile);
 	let description = `The user is ${parsed.name}`;
-	
+
 	if (parsed.occupation && parsed.bio) {
 		description += `, a ${parsed.occupation} (${parsed.bio})`;
 	} else if (parsed.occupation) {
@@ -82,9 +82,10 @@ export function compileUserPersona(profile: unknown): string {
 	}
 
 	if (values.length > 0) {
-		const valuesText = values.length === 1 
-			? `${values[0]}` 
-			: values.slice(0, -1).join(', ') + ' and ' + values[values.length - 1];
+		const valuesText =
+			values.length === 1
+				? `${values[0]}`
+				: values.slice(0, -1).join(', ') + ' and ' + values[values.length - 1];
 		description += ` who values ${valuesText} communication`;
 	}
 

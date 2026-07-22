@@ -1,4 +1,14 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, real, jsonb, customType } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	uuid,
+	text,
+	integer,
+	boolean,
+	timestamp,
+	real,
+	jsonb,
+	customType
+} from 'drizzle-orm/pg-core';
 import { vector } from 'drizzle-orm/pg-core';
 import { encrypt, decrypt } from './encryption';
 
@@ -24,11 +34,16 @@ export const users = pgTable('users', {
 });
 
 export const userProfiles = pgTable('user_profiles', {
-	id: uuid('id').references(() => users.id, { onDelete: 'cascade' }).primaryKey(),
+	id: uuid('id')
+		.references(() => users.id, { onDelete: 'cascade' })
+		.primaryKey(),
 	name: text('name').notNull(),
 	bio: text('bio'),
 	occupation: text('occupation'),
-	communicationStyle: jsonb('communication_style').$type<Record<string, any>>().default({}).notNull()
+	communicationStyle: jsonb('communication_style')
+		.$type<Record<string, any>>()
+		.default({})
+		.notNull()
 });
 
 export const characterProfiles = pgTable('character_profiles', {

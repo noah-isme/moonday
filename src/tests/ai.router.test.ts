@@ -74,20 +74,24 @@ describe('AI Router Routing Rules', () => {
 		}
 	});
 
-	it('should fall back to groq when provider is unspecified and DEFAULT_AI_PROVIDER is unspecified or set to groq', async () => {
+	it('should use an available routed provider when the default provider is missing or unconfigured', async () => {
 		const customRouter = new AIRouter();
 		const originalProvider = env.DEFAULT_AI_PROVIDER;
+		const originalGroq = env.GROQ_API_KEY;
+		const originalProcessGroq = process.env.GROQ_API_KEY;
 
 		try {
+			(env as unknown as Record<string, string | undefined>).GROQ_API_KEY = '';
+			process.env.GROQ_API_KEY = '';
 			// Mock provider as unspecified (undefined)
 			(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = undefined;
 
 			const mockResult = {
-				content: 'Mocked Groq reply',
-				provider: 'groq' as const,
-				model: 'llama-3.3-70b-versatile'
+				content: 'Mocked DeepSeek reply',
+				provider: 'deepseek' as const,
+				model: 'deepseek-chat'
 			};
-			vi.spyOn(customRouter['providers'].groq, 'generateChat').mockResolvedValue(mockResult);
+			vi.spyOn(customRouter['providers'].deepseek, 'generateChat').mockResolvedValue(mockResult);
 
 			const result = await customRouter.generateChat('daily_chat', {
 				messages: [{ role: 'user', content: 'test' }],
@@ -96,7 +100,7 @@ describe('AI Router Routing Rules', () => {
 
 			expect(result).toEqual(mockResult);
 
-			// Mock provider defaults to 'groq'
+			// A Groq default without a Groq key also falls back to an available provider.
 			(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = 'groq';
 			const result2 = await customRouter.generateChat('daily_chat', {
 				messages: [{ role: 'user', content: 'test' }],
@@ -105,6 +109,8 @@ describe('AI Router Routing Rules', () => {
 			expect(result2).toEqual(mockResult);
 		} finally {
 			(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = originalProvider;
+			(env as unknown as Record<string, string | undefined>).GROQ_API_KEY = originalGroq;
+			process.env.GROQ_API_KEY = originalProcessGroq;
 			vi.restoreAllMocks();
 		}
 	});

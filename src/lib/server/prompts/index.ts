@@ -1,5 +1,15 @@
-import { TraitSchema, compileTraitsToDirectives, UserProfileSchema, compileUserPersona } from './compiler';
-export { TraitSchema, compileTraitsToDirectives, UserProfileSchema, compileUserPersona } from './compiler';
+import {
+	TraitSchema,
+	compileTraitsToDirectives,
+	UserProfileSchema,
+	compileUserPersona
+} from './compiler';
+export {
+	TraitSchema,
+	compileTraitsToDirectives,
+	UserProfileSchema,
+	compileUserPersona
+} from './compiler';
 
 export interface CharacterProfile {
 	id: string;
@@ -105,4 +115,3 @@ export function buildSystemPrompt(
 
 	return prompt;
 }
-

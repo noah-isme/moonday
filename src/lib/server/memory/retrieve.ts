@@ -11,7 +11,7 @@ export async function retrieveMemories(
 	try {
 		const queryEmbedding = await embeddingService.getEmbedding(queryText);
 		const rawMemories = await searchMemories(userId, queryEmbedding, 20);
-		
+
 		const ranked = rankAndFilterMemories(rawMemories);
 		const filtered = ranked.filter((r) => r.similarity >= similarityThreshold);
 
@@ -19,9 +19,7 @@ export async function retrieveMemories(
 			return '';
 		}
 
-		const formattedMemories = filtered
-			.map((m) => `- [${m.type}] ${m.content}`)
-			.join('\n');
+		const formattedMemories = filtered.map((m) => `- [${m.type}] ${m.content}`).join('\n');
 
 		return `Relevant memories:\n${formattedMemories}`;
 	} catch (error) {

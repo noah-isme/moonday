@@ -5,7 +5,11 @@
 	import { fade } from 'svelte/transition';
 	import { marked } from 'marked';
 
-	let { message, characterName = 'MOONDAY', isLastAssistant = false } = $props<{
+	let {
+		message,
+		characterName = 'MOONDAY',
+		isLastAssistant = false
+	} = $props<{
 		message: ChatMessage;
 		characterName?: string;
 		isLastAssistant?: boolean;
@@ -99,8 +103,12 @@
 
 			<!-- Shimmering status -->
 			{#if message.role === 'assistant' && message.status}
-				<div class="px-1 py-0.5 text-xs flex items-center gap-1.5 select-none font-medium italic animate-pulse">
-					<span class="inline-block w-1.5 h-1.5 rounded-full bg-violet-glow shadow-[0_0_8px_#c084fc] animate-ping"></span>
+				<div
+					class="px-1 py-0.5 text-xs flex items-center gap-1.5 select-none font-medium italic animate-pulse"
+				>
+					<span
+						class="inline-block w-1.5 h-1.5 rounded-full bg-violet-glow shadow-[0_0_8px_#c084fc] animate-ping"
+					></span>
 					<span class="text-violet-glow/90">{message.status}</span>
 				</div>
 			{/if}
@@ -110,7 +118,10 @@
 				class="px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all duration-300 shadow-lg {message.role ===
 				'user'
 					? 'bg-violet-glow text-deep-navy font-medium rounded-tr-none'
-					: 'bg-soft-dark-blue text-soft-white border border-slate-gray/10 rounded-tl-none'} {isLastAssistant && (chatStore.isThinking || chatStore.isStreaming) ? 'animate-pulse opacity-80' : ''}"
+					: 'bg-soft-dark-blue text-soft-white border border-slate-gray/10 rounded-tl-none'} {isLastAssistant &&
+				(chatStore.isThinking || chatStore.isStreaming)
+					? 'animate-pulse opacity-80'
+					: ''}"
 			>
 				{#if message.role === 'assistant'}
 					<div class="markdown-content">
@@ -122,8 +133,7 @@
 							<textarea
 								bind:value={editedContent}
 								class="w-full p-2 text-sm text-deep-navy bg-white/40 rounded-md border border-deep-navy/20 focus:outline-none focus:border-deep-navy/50 resize-y"
-								rows="3"
-							></textarea>
+								rows="3"></textarea>
 							<div class="flex justify-end gap-2 text-xs">
 								<button
 									onclick={cancelEditing}
@@ -168,7 +178,11 @@
 							aria-label="Reroll last message"
 						>
 							<svg
-								class="w-3.5 h-3.5 {chatStore.isThinking || chatStore.isStreaming || chatStore.isRerolling ? 'animate-spin' : ''}"
+								class="w-3.5 h-3.5 {chatStore.isThinking ||
+								chatStore.isStreaming ||
+								chatStore.isRerolling
+									? 'animate-spin'
+									: ''}"
 								xmlns="http://www.w3.org/2000/svg"
 								fill="none"
 								viewBox="0 0 24 24"

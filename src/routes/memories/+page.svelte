@@ -157,16 +157,24 @@
 					<!-- Editing state Card Form -->
 					<div class="space-y-4">
 						<div class="space-y-1">
-							<label class="block text-[10px] uppercase font-bold text-slate-gray">Title</label>
+							<label
+								for="memory-title"
+								class="block text-[10px] uppercase font-bold text-slate-gray">Title</label
+							>
 							<input
+								id="memory-title"
 								type="text"
 								bind:value={editForm.title}
 								class="w-full p-2 text-xs rounded-lg bg-deep-navy border border-slate-gray/10 text-soft-white outline-none focus:border-violet-glow/30"
 							/>
 						</div>
 						<div class="space-y-1">
-							<label class="block text-[10px] uppercase font-bold text-slate-gray">Content</label>
+							<label
+								for="memory-content"
+								class="block text-[10px] uppercase font-bold text-slate-gray">Content</label
+							>
 							<textarea
+								id="memory-content"
 								bind:value={editForm.content}
 								rows="3"
 								class="w-full p-2 text-xs rounded-lg bg-deep-navy border border-slate-gray/10 text-soft-white outline-none focus:border-violet-glow/30 resize-none"
@@ -174,9 +182,12 @@
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-1">
-								<label class="block text-[10px] uppercase font-bold text-slate-gray">Category</label
+								<label
+									for="memory-category"
+									class="block text-[10px] uppercase font-bold text-slate-gray">Category</label
 								>
 								<select
+									id="memory-category"
 									bind:value={editForm.type}
 									class="w-full p-2 text-xs rounded-lg bg-deep-navy border border-slate-gray/10 text-soft-white outline-none focus:border-violet-glow/30 capitalize"
 								>
@@ -186,10 +197,13 @@
 								</select>
 							</div>
 							<div class="space-y-1">
-								<label class="block text-[10px] uppercase font-bold text-slate-gray"
+								<label
+									for="memory-importance"
+									class="block text-[10px] uppercase font-bold text-slate-gray"
 									>Importance ({editForm.importance})</label
 								>
 								<input
+									id="memory-importance"
 									type="range"
 									min="1"
 									max="10"

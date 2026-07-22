@@ -50,7 +50,7 @@
 	let chartLogs = $derived.by(() => {
 		// Use trendsData if loaded, otherwise fallback to moodStore.logs
 		const rawLogs = trendsData.length > 0 ? trendsData : moodStore.logs;
-		
+
 		// Sort chronologically using Date timestamp comparison (O(n log n))
 		const sorted = [...rawLogs].sort((a, b) => {
 			return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -76,11 +76,24 @@
 			// Map moodScore (-5 to 5) to Y height: -5 is bottom (height - padding), 5 is top (padding)
 			const normalizedScore = (log.moodScore + 5) / 10; // 0 to 1
 			const y = height - padding - normalizedScore * (height - padding * 2);
-			
+
 			// Format X-axis date consistently, e.g. "DD MMM"
 			const dateObj = new Date(log.createdAt);
 			const day = String(dateObj.getDate()).padStart(2, '0');
-			const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+			const months = [
+				'Jan',
+				'Feb',
+				'Mar',
+				'Apr',
+				'May',
+				'Jun',
+				'Jul',
+				'Aug',
+				'Sep',
+				'Oct',
+				'Nov',
+				'Dec'
+			];
 			const month = months[dateObj.getMonth()];
 			const formattedDate = `${day} ${month}`;
 

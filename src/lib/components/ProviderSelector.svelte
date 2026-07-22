@@ -10,10 +10,9 @@
 </script>
 
 <div class="space-y-3">
-	<label
-		class="block text-xs font-semibold text-slate-gray uppercase tracking-wider mb-2 select-none"
-		>AI Inference Provider</label
-	>
+	<p class="block text-xs font-semibold text-slate-gray uppercase tracking-wider mb-2 select-none">
+		AI Inference Provider
+	</p>
 	<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 		<!-- DeepSeek Provider Selection Button -->
 		<button

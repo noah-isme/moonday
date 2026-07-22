@@ -105,7 +105,6 @@ describe('Hybrid Memory Retrieve Engine', () => {
 			// Test Case 3: similarityThreshold = 0.9 (no memories should match)
 			const context3 = await retrieveMemories(testUserId, 'Find preferences', 5, 0.9);
 			expect(context3).toBe('');
-
 		} finally {
 			embeddingService.getEmbedding = originalGetEmbedding;
 		}
