@@ -70,25 +70,37 @@ export function compileUserPersona(profile: unknown): string {
 	}
 
 	const style = parsed.communicationStyle;
-	const values: string[] = [];
-	if (style.formality) {
-		values.push(`${style.formality}`);
-	}
-	if (style.tone) {
-		values.push(`${style.tone}`);
-	}
-	if (style.sarcasmLevel && style.sarcasmLevel !== 'none') {
-		values.push(`${style.sarcasmLevel} sarcasm`);
-	}
-
-	if (values.length > 0) {
-		const valuesText =
-			values.length === 1
-				? `${values[0]}`
-				: values.slice(0, -1).join(', ') + ' and ' + values[values.length - 1];
-		description += ` who values ${valuesText} communication`;
-	}
-
 	description += '.';
-	return description;
+
+	const preferences: string[] = [];
+	if (typeof style.tone === 'string') preferences.push(`Use a ${style.tone} tone.`);
+	if (typeof style.formality === 'string')
+		preferences.push(`Keep the register ${style.formality}.`);
+	if (typeof style.sarcasmLevel === 'string') {
+		preferences.push(`Use ${style.sarcasmLevel} sarcasm; never make it insulting.`);
+	}
+
+	const numericPreference = (key: string) => {
+		const value = Number(style[key]);
+		return Number.isFinite(value) ? value : undefined;
+	};
+	const warmth = numericPreference('warmth');
+	const directness = numericPreference('directness');
+	const humor = numericPreference('humor');
+	const responseLength = numericPreference('responseLength');
+	const questionFrequency = numericPreference('questionFrequency');
+
+	if (warmth !== undefined) preferences.push(`Emotional warmth: ${warmth}/5.`);
+	if (directness !== undefined) preferences.push(`Directness: ${directness}/5.`);
+	if (humor !== undefined) preferences.push(`Humor: ${humor}/5.`);
+	if (responseLength !== undefined)
+		preferences.push(`Preferred response length: ${responseLength}/5.`);
+	if (questionFrequency !== undefined)
+		preferences.push(
+			`Question frequency: ${questionFrequency}/5; do not ask a question by default.`
+		);
+
+	return preferences.length > 0
+		? `${description}\n\n[User Response Preferences]\n${preferences.join(' ')}`
+		: description;
 }

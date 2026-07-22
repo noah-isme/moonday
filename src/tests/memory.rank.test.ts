@@ -146,5 +146,46 @@ describe('Memory Ranking Logic', () => {
 			expect(ranked.length).toBe(1);
 			expect(ranked[0].id).toBe('1');
 		});
+
+		it('should favor importance and confidence while excluding sensitive memories by default', () => {
+			const ranked = rankAndFilterMemories(
+				[
+					{
+						id: 'recent-low-value',
+						type: 'reflection',
+						title: 'Small note',
+						content: 'A passing thought',
+						similarity: 0.8,
+						importance: 1,
+						confidence: 0.2,
+						createdAt: new Date()
+					},
+					{
+						id: 'durable-preference',
+						type: 'preference',
+						title: 'Communication preference',
+						content: 'Prefers concise practical guidance',
+						similarity: 0.8,
+						importance: 10,
+						confidence: 1,
+						createdAt: new Date('2026-07-09T00:00:00Z')
+					},
+					{
+						id: 'sensitive',
+						type: 'core_memory',
+						title: 'Sensitive context',
+						content: 'Should not enter automatic context',
+						similarity: 0.99,
+						importance: 10,
+						confidence: 1,
+						isSensitive: true,
+						createdAt: new Date()
+					}
+				],
+				{ limit: 3 }
+			);
+
+			expect(ranked.map((memory) => memory.id)).toEqual(['durable-preference', 'recent-low-value']);
+		});
 	});
 });

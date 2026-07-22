@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { settingsStore } from '$lib/stores/settings.svelte';
+	import { uiStore } from '$lib/stores/ui.svelte';
 
 	let activeProvider = $derived(settingsStore.provider);
 	let activeModel = $derived(settingsStore.model);
 
 	function select(provider: 'deepseek' | 'claude' | 'groq') {
+		const changed = settingsStore.provider !== provider;
 		settingsStore.setProvider(provider);
+		if (changed) {
+			const name = provider === 'groq' ? 'Groq' : provider[0].toUpperCase() + provider.slice(1);
+			uiStore.setNotice(`${name} selected for new replies.`, 'info');
+		}
 	}
 </script>
 

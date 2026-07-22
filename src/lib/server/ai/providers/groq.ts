@@ -94,7 +94,7 @@ export class GroqProvider implements AIProvider {
 			});
 		} catch (e: any) {
 			const networkError = new Error(`Groq network error: ${e.message || e}`);
-			(networkError as any).status = 500;
+			(networkError as any).status = 503;
 			throw networkError;
 		}
 
@@ -161,7 +161,7 @@ export class GroqProvider implements AIProvider {
 				});
 			} catch (e: any) {
 				const networkError = new Error(`Groq network error: ${e.message || e}`);
-				(networkError as any).status = 500;
+				(networkError as any).status = 503;
 				throw networkError;
 			}
 
@@ -239,7 +239,7 @@ export class GroqProvider implements AIProvider {
 				});
 			} catch (e: any) {
 				const networkError = new Error(`Groq network error: ${e.message || e}`);
-				(networkError as any).status = 500;
+				(networkError as any).status = 503;
 				throw networkError;
 			}
 
@@ -355,7 +355,7 @@ export class GroqProvider implements AIProvider {
 			});
 		} catch (e: any) {
 			const networkError = new Error(`Groq network error: ${e.message || e}`);
-			(networkError as any).status = 500;
+			(networkError as any).status = 503;
 			throw networkError;
 		}
 
@@ -495,7 +495,7 @@ export class GroqProvider implements AIProvider {
 					});
 				} catch (e: any) {
 					const networkError = new Error(`Groq network error: ${e.message || e}`);
-					(networkError as any).status = 500;
+					(networkError as any).status = 503;
 					throw networkError;
 				}
 

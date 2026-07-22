@@ -131,7 +131,7 @@ describe('Prompt Traits Compiler', () => {
 	});
 
 	describe('compileUserPersona', () => {
-		it('should compile complete user profile to narrative prompt description', () => {
+		it('should compile complete user profile to explicit response preferences', () => {
 			const profile = {
 				name: 'Noah',
 				bio: 'Senior Software Architect',
@@ -145,7 +145,7 @@ describe('Prompt Traits Compiler', () => {
 
 			const compiled = compileUserPersona(profile);
 			expect(compiled).toBe(
-				'The user is Noah, a Software Architect (Senior Software Architect) who values to-the-point and straightforward communication.'
+				'The user is Noah, a Software Architect (Senior Software Architect).\n\n[User Response Preferences]\nUse a straightforward tone. Keep the register to-the-point. Use none sarcasm; never make it insulting.'
 			);
 		});
 

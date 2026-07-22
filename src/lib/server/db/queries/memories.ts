@@ -1,6 +1,6 @@
 import { db } from '../client';
 import { memories, memoryEmbeddings } from '../schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, inArray, sql } from 'drizzle-orm';
 
 export interface CreateMemoryInput {
 	userId: string;
@@ -140,4 +140,13 @@ export async function searchMemories(userId: string, queryEmbedding: number[], l
 		.limit(limitVal);
 
 	return results;
+}
+
+/** Record only the memories that were actually selected for model context. */
+export async function markMemoriesReferenced(memoryIds: string[]) {
+	if (memoryIds.length === 0) return;
+	await db
+		.update(memories)
+		.set({ lastReferencedAt: new Date(), updatedAt: new Date() })
+		.where(inArray(memories.id, memoryIds));
 }

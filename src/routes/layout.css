@@ -8,7 +8,7 @@
 	--color-violet-glow: #a78bfa;
 	--color-cyan-glow: #22d3ee;
 	--color-soft-white: #f8fafc;
-	--color-slate-gray: #64748b;
+	--color-slate-gray: #94a3b8;
 	--color-soft-red: #f87171;
 	--color-calm-green: #34d399;
 
@@ -35,6 +35,24 @@
 		50% {
 			transform: translateY(-10px);
 		}
+	}
+}
+
+@layer components {
+	.settings-section > summary {
+		list-style: none;
+	}
+
+	.settings-section > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.settings-section > summary .settings-chevron {
+		transition: transform 200ms ease;
+	}
+
+	.settings-section[open] > summary .settings-chevron {
+		transform: rotate(180deg);
 	}
 }
 

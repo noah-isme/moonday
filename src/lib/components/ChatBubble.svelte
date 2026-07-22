@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ChatMessage } from '$lib/stores/chat.svelte';
 	import { chatStore } from '$lib/stores/chat.svelte';
+	import { memoryStore } from '$lib/stores/memory.svelte';
+	import { voiceStore } from '$lib/stores/voice.svelte';
 	import { MOODS } from '$lib/stores/mood.svelte';
 	import { fade } from 'svelte/transition';
 	import { marked } from 'marked';
@@ -30,6 +32,16 @@
 	function saveEdit() {
 		isEditing = false;
 		chatStore.editMessage(message.id, editedContent);
+	}
+
+	function saveReflection() {
+		memoryStore.addMemory({
+			type: 'reflection',
+			title: `MOONDAY reflection — ${new Date(message.createdAt).toLocaleDateString()}`,
+			content: message.content,
+			importance: 6,
+			confidence: 0.8
+		});
 	}
 
 	// Configure marked options
@@ -173,9 +185,9 @@
 						<button
 							onclick={() => chatStore.rerollLastMessage()}
 							disabled={chatStore.isStreaming || chatStore.isThinking || chatStore.isRerolling}
-							class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
-							title="Reroll last message"
-							aria-label="Reroll last message"
+							class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-gray/15 text-xs font-medium text-pale-silver hover:border-violet-glow/50 hover:bg-violet-glow/10 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
+							title="Generate another response"
+							aria-label="Regenerate response"
 						>
 							<svg
 								class="w-3.5 h-3.5 {chatStore.isThinking ||
@@ -195,12 +207,39 @@
 									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
 								/>
 							</svg>
+							<span>{chatStore.isRerolling ? 'Regenerating…' : 'Regenerate'}</span>
 						</button>
 					{/if}
 				</div>
 			{/if}
 
-			{#if message.role === 'user' && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}
+			{#if message.role === 'assistant' && isLastAssistant && message.content}
+				<div class="flex flex-wrap gap-1.5 px-1 mt-1">
+					{#each [['Shorter', 'Please make your previous response shorter and clearer.'], ['More practical', 'Please turn your previous response into practical next steps.'], ['Go deeper', 'Please go deeper on your previous response.']] as action}
+						<button
+							type="button"
+							onclick={() => chatStore.sendMessage(action[1])}
+							disabled={chatStore.isThinking || chatStore.isStreaming}
+							class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver disabled:opacity-50"
+							>{action[0]}</button
+						>
+					{/each}
+					<button
+						type="button"
+						onclick={() => voiceStore.speak(message.content)}
+						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
+						>Speak</button
+					>
+					<button
+						type="button"
+						onclick={saveReflection}
+						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
+						>Save reflection</button
+					>
+				</div>
+			{/if}
+
+			{#if message.role === 'user' && message.persisted === true && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}
 				<div class="flex px-1 mt-1 justify-end items-center gap-2">
 					<button
 						onclick={startEditing}

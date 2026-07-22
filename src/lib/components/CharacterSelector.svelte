@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { characterStore, CHARACTERS } from '$lib/stores/character.svelte';
+	import { uiStore } from '$lib/stores/ui.svelte';
 
 	let { onSelect } = $props<{
 		onSelect?: (id: string) => void;
 	}>();
 
 	function handleSelect(id: string) {
+		const changed = characterStore.activeId !== id;
 		characterStore.selectCharacter(id);
+		if (changed) uiStore.setNotice(`${characterStore.activeCharacter.name} is now your companion.`);
 		if (onSelect) {
 			onSelect(id);
 		}

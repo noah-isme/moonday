@@ -89,6 +89,44 @@ export class AIRouter {
 		return !!(process.env.GROQ_API_KEY || env.GROQ_API_KEY);
 	}
 
+	private fallbackCandidates(taskType: RoutingTaskType, requestedProvider?: AIProviderName) {
+		const routeProvider = this.route(taskType).provider;
+		const configuredDefault = env.DEFAULT_AI_PROVIDER as AIProviderName | undefined;
+		const preferred = requestedProvider || configuredDefault || routeProvider;
+		const available = (['groq', 'deepseek', 'claude'] as AIProviderName[]).filter((provider) =>
+			this.isProviderAvailable(provider)
+		);
+
+		// Keep the routed provider as a final candidate in test/local environments
+		// where credentials may be injected by the provider mock instead of env.
+		return [...new Set<AIProviderName>([preferred, ...available, routeProvider])];
+	}
+
+	private modelFor(provider: AIProviderName, taskType: RoutingTaskType) {
+		const route = this.route(taskType);
+		if (provider === route.provider) return route.model;
+		if (provider === 'groq') {
+			return (
+				(env.DEFAULT_AI_PROVIDER === 'groq' && env.DEFAULT_AI_MODEL) || 'llama-3.3-70b-versatile'
+			);
+		}
+		if (provider === 'deepseek') {
+			return (env.DEFAULT_AI_PROVIDER === 'deepseek' && env.DEFAULT_AI_MODEL) || 'deepseek-chat';
+		}
+		return env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
+	}
+
+	private isRetryableProviderError(error: unknown) {
+		const providerError = error as { status?: number; message?: string };
+		const message = providerError?.message || '';
+		return (
+			providerError?.status === 429 ||
+			(providerError?.status !== undefined && providerError.status >= 500) ||
+			/\b(429|5\d\d)\b/.test(message) ||
+			/network error|fetch failed|timeout|temporarily unavailable|service error/i.test(message)
+		);
+	}
+
 	generateChat(
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions & { stream: true }
@@ -105,40 +143,33 @@ export class AIRouter {
 		taskType: RoutingTaskType,
 		options: GenerateChatOptions
 	): Promise<GenerateChatResult | AsyncGenerator<ChatStreamChunk, GenerateChatResult, unknown>> {
-		// Let options.provider override the routed provider if explicitly specified
-		let provider: AIProvider;
-		if (options.provider) {
-			if (!this.isProviderAvailable(options.provider)) {
-				throw new Error(`${options.provider.toUpperCase()}_API_KEY is not set`);
-			}
-			provider = this.providers[options.provider];
-		} else {
-			const defaultProvider = env.DEFAULT_AI_PROVIDER as AIProviderName | undefined;
-			provider =
-				defaultProvider && this.isProviderAvailable(defaultProvider)
-					? this.providers[defaultProvider]
-					: this.getProviderForTask(taskType);
-		}
+		const candidates = this.fallbackCandidates(taskType, options.provider);
+		let lastError: unknown;
 
-		// Configure model based on provider if not specified in options
-		const mergedOptions = { ...options };
-		if (!mergedOptions.model) {
-			const config = this.route(taskType);
-			if (provider.name === config.provider) {
-				mergedOptions.model = config.model;
-			} else if (provider.name === 'groq') {
-				mergedOptions.model =
-					(env.DEFAULT_AI_PROVIDER === 'groq' && env.DEFAULT_AI_MODEL) || 'llama-3.3-70b-versatile';
-			} else if (provider.name === 'deepseek') {
-				// Use DEFAULT_AI_MODEL if DEFAULT_AI_PROVIDER is deepseek, otherwise default deepseek-chat
-				mergedOptions.model =
-					(env.DEFAULT_AI_PROVIDER === 'deepseek' && env.DEFAULT_AI_MODEL) || 'deepseek-chat';
-			} else {
-				mergedOptions.model = env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
+		for (const providerName of candidates) {
+			if (
+				!this.isProviderAvailable(providerName) &&
+				candidates.some((candidate) => this.isProviderAvailable(candidate))
+			) {
+				continue;
+			}
+			const provider = this.providers[providerName];
+			const mergedOptions = {
+				...options,
+				model: options.model || this.modelFor(providerName, taskType)
+			};
+			try {
+				return await provider.generateChat(mergedOptions as any);
+			} catch (error) {
+				lastError = error;
+				if (!this.isRetryableProviderError(error) || providerName === candidates.at(-1)) {
+					throw error;
+				}
+				console.warn(`AI provider ${providerName} unavailable; trying configured fallback.`);
 			}
 		}
 
-		return provider.generateChat(mergedOptions as any);
+		throw lastError instanceof Error ? lastError : new Error('No AI provider is available.');
 	}
 }
 

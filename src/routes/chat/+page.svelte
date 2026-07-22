@@ -12,12 +12,38 @@
 
 	let scrollContainer = $state<HTMLDivElement | null>(null);
 	let drawerOpen = $state(false);
+	let dailyPromptDismissed = $state(false);
 	let renameId = $state<string | null>(null);
 	let renameValue = $state('');
 
 	let activeConv = $derived(chatStore.activeConversation);
 	let messages = $derived(chatStore.activeMessages);
+	let lastAssistantId = $derived(
+		[...messages].reverse().find((message) => message.role === 'assistant')?.id
+	);
 	let isThinkingOrStreaming = $derived(chatStore.isThinking || chatStore.isStreaming);
+	let showStarterPrompts = $derived(
+		!chatStore.isThinking &&
+			!chatStore.isStreaming &&
+			!messages.some((message) => message.role === 'user')
+	);
+	let hasMessagesFromToday = $derived(
+		messages.some(
+			(message) => new Date(message.createdAt).toDateString() === new Date().toDateString()
+		)
+	);
+	let showDailyContinuity = $derived(
+		!dailyPromptDismissed &&
+			!hasMessagesFromToday &&
+			messages.some((message) => message.role === 'user')
+	);
+
+	const starterPrompts = [
+		'Unload what is on my mind.',
+		'Help me plan one small next step.',
+		'Help me reflect on today.',
+		'I just want you to listen.'
+	];
 
 	function focus(node: HTMLInputElement) {
 		node.focus();
@@ -69,8 +95,17 @@
 		await chatStore.sendMessage(text);
 	}
 
-	function handleCreateChat() {
-		chatStore.createNewConversation();
+	function switchProvider() {
+		settingsStore.setProvider(settingsStore.provider === 'deepseek' ? 'groq' : 'deepseek');
+	}
+
+	async function retryWithoutWebSearch() {
+		if (chatStore.isWebSearchEnabled) chatStore.toggleWebSearch();
+		await chatStore.retryLastMessage();
+	}
+
+	async function handleCreateChat() {
+		await chatStore.createNewConversation();
 		scrollToBottom('auto');
 	}
 
@@ -84,16 +119,16 @@
 		renameValue = title;
 	}
 
-	function saveRename() {
+	async function saveRename() {
 		if (renameId && renameValue.trim()) {
-			chatStore.updateConversationTitle(renameId, renameValue.trim());
-			renameId = null;
+			const renamed = await chatStore.updateConversationTitle(renameId, renameValue.trim());
+			if (renamed) renameId = null;
 		}
 	}
 
-	function handleRenameKeyDown(event: KeyboardEvent) {
+	async function handleRenameKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
-			saveRename();
+			await saveRename();
 		} else if (event.key === 'Escape') {
 			renameId = null;
 		}
@@ -186,7 +221,7 @@
 							</button>
 							{#if chatStore.conversations.length > 1}
 								<button
-									onclick={() => chatStore.deleteConversation(conv.id)}
+									onclick={async () => await chatStore.deleteConversation(conv.id)}
 									class="p-1 hover:text-soft-red text-slate-gray cursor-pointer"
 									title="Delete session"
 								>
@@ -224,6 +259,21 @@
 			class="flex items-center justify-between pb-3 border-b border-slate-gray/10 mb-4 select-none"
 		>
 			<div class="flex items-center gap-2">
+				<label class="sr-only" for="response-language">Response language</label>
+				<select
+					id="response-language"
+					value={settingsStore.responseLanguage}
+					onchange={(event) =>
+						settingsStore.setResponseLanguage(
+							(event.currentTarget as HTMLSelectElement).value as 'auto' | 'en' | 'id'
+						)}
+					class="max-w-24 sm:max-w-none rounded-lg border border-slate-gray/15 bg-deep-navy/50 px-2 py-1.5 text-xs text-pale-silver outline-none focus:border-violet-glow/60"
+					title="Choose MOONDAY's response language"
+				>
+					<option value="auto">Auto</option>
+					<option value="en">English</option>
+					<option value="id">Bahasa Indonesia</option>
+				</select>
 				<h2 class="text-sm font-bold text-soft-white truncate max-w-[200px] md:max-w-sm">
 					{activeConv?.title || `Chatting with ${activeCompanionName}`}
 				</h2>
@@ -300,14 +350,108 @@
 			</div>
 		</div>
 
+		{#if chatStore.error}
+			<div
+				role="alert"
+				class="mb-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-soft-red/10 border border-soft-red/20 text-xs text-soft-red"
+			>
+				<div class="min-w-0">
+					<span>{chatStore.error}</span>
+					<div class="mt-2 flex flex-wrap gap-2">
+						<button
+							type="button"
+							onclick={() => chatStore.retryLastMessage()}
+							class="font-semibold hover:text-soft-white">Retry</button
+						>
+						<button
+							type="button"
+							onclick={switchProvider}
+							class="font-semibold hover:text-soft-white">Switch provider</button
+						>
+						{#if chatStore.isWebSearchEnabled}
+							<button
+								type="button"
+								onclick={retryWithoutWebSearch}
+								class="font-semibold hover:text-soft-white">Continue without web search</button
+							>
+						{/if}
+					</div>
+				</div>
+				<button
+					type="button"
+					onclick={() => (chatStore.error = null)}
+					aria-label="Dismiss chat error"
+					class="font-bold hover:text-soft-white cursor-pointer">×</button
+				>
+			</div>
+		{/if}
+
+		{#if chatStore.usedMemories.length > 0}
+			<div
+				class="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-cyan-glow/15 bg-cyan-glow/5 px-3 py-2 text-[10px] text-slate-gray"
+			>
+				<span class="font-semibold text-pale-silver">Using context:</span>
+				{#each chatStore.usedMemories as memory (memory.id)}
+					<span
+						class="inline-flex items-center gap-1 rounded-full border border-cyan-glow/20 px-2 py-0.5 text-cyan-glow"
+						title={memory.type}
+					>
+						{memory.title}
+						<button
+							type="button"
+							onclick={() => chatStore.dismissUsedMemory(memory.id)}
+							aria-label={`Dismiss ${memory.title}`}
+							class="hover:text-soft-white">×</button
+						>
+					</span>
+				{/each}
+				<button
+					type="button"
+					onclick={() => (window.location.href = '/memories')}
+					class="ml-auto font-semibold text-pale-silver hover:text-violet-glow"
+					>Edit memories</button
+				>
+			</div>
+		{/if}
+
 		<!-- Scrollable Messages Container -->
 		<div bind:this={scrollContainer} class="flex-1 overflow-y-auto px-1 scroll-smooth">
-			{#each messages as msg, index (msg.id)}
+			{#if showDailyContinuity}
+				<div
+					class="mx-auto mb-4 max-w-lg rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-4 text-center"
+				>
+					<p class="text-xs font-semibold text-pale-silver">A new day, a gentle choice</p>
+					<p class="mt-1 text-xs text-slate-gray">
+						Would you like to continue yesterday’s thread, reflect, or begin fresh?
+					</p>
+					<div class="mt-3 flex flex-wrap justify-center gap-2 text-xs">
+						<button
+							type="button"
+							onclick={() => handleSend('Let’s continue where we left off yesterday.')}
+							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-violet-glow/50"
+							>Continue</button
+						>
+						<button
+							type="button"
+							onclick={() => handleSend('Help me reflect on yesterday before I begin today.')}
+							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-violet-glow/50"
+							>Reflect</button
+						>
+						<button
+							type="button"
+							onclick={() => (dailyPromptDismissed = true)}
+							class="rounded-lg px-2.5 py-1.5 text-slate-gray hover:text-pale-silver"
+							>Start fresh</button
+						>
+					</div>
+				</div>
+			{/if}
+			{#each messages as msg (msg.id)}
 				{#if msg.role !== 'system'}
 					<ChatBubble
 						message={msg}
 						characterName={activeCompanionName}
-						isLastAssistant={index === messages.length - 1 && msg.role === 'assistant'}
+						isLastAssistant={msg.id === lastAssistantId}
 					/>
 				{/if}
 			{:else}
@@ -334,6 +478,24 @@
 					</p>
 				</div>
 			{/each}
+
+			{#if showStarterPrompts}
+				<div class="max-w-lg mx-auto w-full px-2 pb-6 pt-3 text-center">
+					<p class="text-xs font-semibold text-pale-silver">A gentle place to begin</p>
+					<p class="text-xs text-slate-gray mt-1">Pick a thought, or write your own.</p>
+					<div class="grid gap-2 mt-4 text-left">
+						{#each starterPrompts as prompt}
+							<button
+								type="button"
+								onclick={() => handleSend(prompt)}
+								class="w-full px-4 py-3 rounded-2xl bg-deep-navy/40 border border-slate-gray/10 text-xs text-pale-silver hover:border-violet-glow/40 hover:bg-violet-glow/10 transition-colors cursor-pointer"
+							>
+								{prompt}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- Thinking Bubbles -->
 			{#if chatStore.isThinking}
@@ -480,9 +642,9 @@
 			<!-- Drawer Footer Action -->
 			<div class="pt-4 border-t border-slate-gray/10 mt-4 select-none">
 				<button
-					onclick={() => {
+					onclick={async () => {
 						if (confirm('Clear chat history for this conversation?')) {
-							if (activeConv) chatStore.deleteConversation(activeConv.id);
+							if (activeConv) await chatStore.deleteConversation(activeConv.id);
 							drawerOpen = false;
 						}
 					}}

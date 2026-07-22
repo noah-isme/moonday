@@ -292,6 +292,20 @@
 					<!-- Reflection Title / Mood Summary -->
 					<h3 class="text-md font-bold text-soft-white">{reflection.moodSummary}</h3>
 
+					<!-- Companion Focus Card -->
+					<div
+						class="p-4 bg-violet-glow/10 border border-violet-glow/25 rounded-2xl flex gap-3 text-xs shadow-[0_0_24px_rgba(167,139,250,0.08)]"
+					>
+						<div class="text-moon-yellow mt-0.5 select-none">💡</div>
+						<div>
+							<span
+								class="font-bold text-moon-yellow block text-[10px] uppercase tracking-wider mb-1"
+								>Suggested Navigator Focus</span
+							>
+							<p class="text-soft-white leading-relaxed">{reflection.suggestedFocus}</p>
+						</div>
+					</div>
+
 					<!-- Core text grids -->
 					<div
 						class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2 border-t border-slate-gray/10"
@@ -310,20 +324,6 @@
 								>Highlights & Events</span
 							>
 							<p class="text-pale-silver leading-relaxed">{reflection.importantEvents}</p>
-						</div>
-					</div>
-
-					<!-- Companion Focus Card -->
-					<div
-						class="p-3 bg-deep-navy/40 border border-slate-gray/5 rounded-2xl flex gap-3 text-xs"
-					>
-						<div class="text-yellow-200 mt-0.5 select-none">💡</div>
-						<div>
-							<span
-								class="font-bold text-yellow-200 block text-[9px] uppercase tracking-wider mb-0.5"
-								>Suggested Navigator Focus</span
-							>
-							<p class="text-pale-silver leading-relaxed italic">{reflection.suggestedFocus}</p>
 						</div>
 					</div>
 				</div>

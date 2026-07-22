@@ -133,4 +133,38 @@ describe('AI Router Routing Rules', () => {
 		expect(result).toEqual(mockResult);
 		vi.restoreAllMocks();
 	});
+
+	it('should retry with another available provider after a transient provider failure', async () => {
+		const customRouter = new AIRouter({
+			daily_chat: { provider: 'deepseek', model: 'deepseek-chat' }
+		});
+		const originalDefault = env.DEFAULT_AI_PROVIDER;
+		(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = undefined;
+
+		try {
+			vi.spyOn(customRouter as any, 'isProviderAvailable').mockReturnValue(true);
+			const transientError = Object.assign(new Error('DeepSeek API error: 503 unavailable'), {
+				status: 503
+			});
+			vi.spyOn(customRouter['providers'].deepseek, 'generateChat').mockRejectedValue(
+				transientError
+			);
+			vi.spyOn(customRouter['providers'].groq, 'generateChat').mockResolvedValue({
+				content: 'Fallback reply',
+				provider: 'groq',
+				model: 'llama-3.3-70b-versatile'
+			});
+
+			const result = await customRouter.generateChat('daily_chat', {
+				messages: [{ role: 'user', content: 'test' }],
+				stream: false
+			});
+
+			expect(result.provider).toBe('groq');
+			expect(customRouter['providers'].groq.generateChat).toHaveBeenCalledOnce();
+		} finally {
+			(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = originalDefault;
+			vi.restoreAllMocks();
+		}
+	});
 });

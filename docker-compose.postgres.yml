@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: moonday-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: moonday
+      POSTGRES_USER: moonday
+      POSTGRES_PASSWORD: moonday
+    ports:
+      - '5433:5432'
+    volumes:
+      - moonday_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U moonday -d moonday']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  moonday_postgres_data:

@@ -22,6 +22,8 @@
 		"db:studio": "drizzle-kit studio",
 		"db:seed": "bun src/lib/server/db/seed.ts",
 		"db:reset": "bun src/lib/server/db/reset.ts",
+		"db:up": "docker container inspect moonday-postgres >/dev/null 2>&1 && docker start moonday-postgres || docker compose -f docker-compose.postgres.yml up -d",
+		"db:down": "docker container inspect moonday-postgres >/dev/null 2>&1 && docker stop moonday-postgres || docker compose -f docker-compose.postgres.yml down",
 		"search:up": "docker compose -f docker-compose.searxng.yml up -d",
 		"search:down": "docker compose -f docker-compose.searxng.yml down"
 	},

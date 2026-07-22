@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { moodStore, MOODS } from '$lib/stores/mood.svelte';
+	import { uiStore } from '$lib/stores/ui.svelte';
 
 	let { onCheckedIn } = $props<{
 		onCheckedIn?: () => void;
 	}>();
 
 	let checkInState = $derived(moodStore.currentCheckIn);
+	let showDetails = $state(false);
 
 	function handleMoodSelect(label: string) {
 		moodStore.selectMood(label);
@@ -14,6 +16,7 @@
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
 		await moodStore.submitCheckIn();
+		uiStore.setNotice('Mood reflection saved. MOONDAY will carry this forward.');
 		if (onCheckedIn) {
 			onCheckedIn();
 		}
@@ -26,7 +29,7 @@
 	<div class="text-center mb-6">
 		<h2 class="text-xl font-bold text-soft-white tracking-wide">How are you feeling right now?</h2>
 		<p class="text-xs text-slate-gray mt-1">
-			Select a mood and note down your levels to help MOONDAY navigate your patterns.
+			Start with a mood. Add detail only if it feels useful today.
 		</p>
 	</div>
 
@@ -59,66 +62,78 @@
 			</div>
 		</div>
 
-		<!-- Energy and Stress Sliders -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-			<!-- Energy Slider -->
-			<div class="space-y-2">
-				<div
-					class="flex justify-between items-center text-xs font-semibold text-slate-gray uppercase tracking-wider"
-				>
-					<span>Energy Level</span>
-					<span class="text-cyan-glow normal-case font-bold">{checkInState.energyLevel} / 5</span>
+		<button
+			type="button"
+			onclick={() => (showDetails = !showDetails)}
+			class="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-gray/10 bg-deep-navy/25 text-xs font-semibold text-pale-silver hover:border-violet-glow/35 transition-colors cursor-pointer"
+			aria-expanded={showDetails}
+		>
+			<span>{showDetails ? 'Hide optional details' : 'Add energy, stress, or a note'}</span>
+			<span class="text-violet-glow">{showDetails ? '−' : '+'}</span>
+		</button>
+
+		{#if showDetails}
+			<!-- Energy and Stress Sliders -->
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+				<!-- Energy Slider -->
+				<div class="space-y-2">
+					<div
+						class="flex justify-between items-center text-xs font-semibold text-slate-gray uppercase tracking-wider"
+					>
+						<span>Energy Level</span>
+						<span class="text-cyan-glow normal-case font-bold">{checkInState.energyLevel} / 5</span>
+					</div>
+					<input
+						type="range"
+						min="1"
+						max="5"
+						bind:value={moodStore.currentCheckIn.energyLevel}
+						class="w-full accent-cyan-glow bg-deep-navy h-2 rounded-lg cursor-pointer"
+					/>
+					<div class="flex justify-between text-[10px] text-slate-gray select-none">
+						<span>Exhausted</span>
+						<span>Hyperactive</span>
+					</div>
 				</div>
-				<input
-					type="range"
-					min="1"
-					max="5"
-					bind:value={moodStore.currentCheckIn.energyLevel}
-					class="w-full accent-cyan-glow bg-deep-navy h-2 rounded-lg cursor-pointer"
-				/>
-				<div class="flex justify-between text-[10px] text-slate-gray select-none">
-					<span>Exhausted</span>
-					<span>Hyperactive</span>
+
+				<!-- Stress Slider -->
+				<div class="space-y-2">
+					<div
+						class="flex justify-between items-center text-xs font-semibold text-slate-gray uppercase tracking-wider"
+					>
+						<span>Stress Level</span>
+						<span class="text-soft-red normal-case font-bold">{checkInState.stressLevel} / 5</span>
+					</div>
+					<input
+						type="range"
+						min="1"
+						max="5"
+						bind:value={moodStore.currentCheckIn.stressLevel}
+						class="w-full accent-soft-red bg-deep-navy h-2 rounded-lg cursor-pointer"
+					/>
+					<div class="flex justify-between text-[10px] text-slate-gray select-none">
+						<span>Zen / Calm</span>
+						<span>Overwhelmed</span>
+					</div>
 				</div>
 			</div>
 
-			<!-- Stress Slider -->
+			<!-- Reflection Note -->
 			<div class="space-y-2">
-				<div
-					class="flex justify-between items-center text-xs font-semibold text-slate-gray uppercase tracking-wider"
+				<label
+					for="reflection-note"
+					class="block text-xs font-semibold text-slate-gray uppercase tracking-wider"
+					>Reflection Note (Optional)</label
 				>
-					<span>Stress Level</span>
-					<span class="text-soft-red normal-case font-bold">{checkInState.stressLevel} / 5</span>
-				</div>
-				<input
-					type="range"
-					min="1"
-					max="5"
-					bind:value={moodStore.currentCheckIn.stressLevel}
-					class="w-full accent-soft-red bg-deep-navy h-2 rounded-lg cursor-pointer"
-				/>
-				<div class="flex justify-between text-[10px] text-slate-gray select-none">
-					<span>Zen / Calm</span>
-					<span>Overwhelmed</span>
-				</div>
+				<textarea
+					id="reflection-note"
+					bind:value={moodStore.currentCheckIn.note}
+					placeholder="Write a brief note about what is on your mind..."
+					rows="3"
+					class="w-full p-3 text-sm rounded-xl bg-deep-navy border border-slate-gray/10 text-soft-white placeholder-slate-gray outline-none focus:border-violet-glow/30 transition-all duration-300"
+				></textarea>
 			</div>
-		</div>
-
-		<!-- Reflection Note -->
-		<div class="space-y-2">
-			<label
-				for="reflection-note"
-				class="block text-xs font-semibold text-slate-gray uppercase tracking-wider"
-				>Reflection Note (Optional)</label
-			>
-			<textarea
-				id="reflection-note"
-				bind:value={moodStore.currentCheckIn.note}
-				placeholder="Write a brief note about what is on your mind..."
-				rows="3"
-				class="w-full p-3 text-sm rounded-xl bg-deep-navy border border-slate-gray/10 text-soft-white placeholder-slate-gray outline-none focus:border-violet-glow/30 transition-all duration-300"
-			></textarea>
-		</div>
+		{/if}
 
 		<!-- Submit Button -->
 		<button

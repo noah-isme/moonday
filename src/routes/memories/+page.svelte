@@ -6,6 +6,8 @@
 
 	// Track which memory is currently being edited
 	let editingId = $state<string | null>(null);
+	let recentlyDeleted = $state<Memory | null>(null);
+	let undoTimer: ReturnType<typeof setTimeout> | null = null;
 	let editForm = $state<{
 		title: string;
 		content: string;
@@ -81,13 +83,35 @@
 	}
 
 	function handleDelete(id: string) {
+		const memory = memoryStore.list.find((item) => item.id === id);
+		if (!memory) return;
 		if (
 			confirm(
 				'Are you sure you want to delete this memory? MOONDAY will forget this context in future conversations.'
 			)
 		) {
 			memoryStore.deleteMemory(id);
+			recentlyDeleted = memory;
+			if (undoTimer) clearTimeout(undoTimer);
+			undoTimer = setTimeout(() => {
+				recentlyDeleted = null;
+				undoTimer = null;
+			}, 6000);
 		}
+	}
+
+	function undoDelete() {
+		if (!recentlyDeleted) return;
+		memoryStore.addMemory({
+			type: recentlyDeleted.type,
+			title: recentlyDeleted.title,
+			content: recentlyDeleted.content,
+			importance: recentlyDeleted.importance,
+			confidence: recentlyDeleted.confidence
+		});
+		recentlyDeleted = null;
+		if (undoTimer) clearTimeout(undoTimer);
+		undoTimer = null;
 	}
 </script>
 
@@ -146,6 +170,22 @@
 			</div>
 		</div>
 	</div>
+
+	{#if recentlyDeleted}
+		<div
+			role="status"
+			class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-4 py-3 rounded-2xl bg-soft-dark-blue border border-violet-glow/30 shadow-2xl text-xs text-pale-silver"
+		>
+			<span>Memory forgotten.</span>
+			<button
+				type="button"
+				onclick={undoDelete}
+				class="font-bold text-violet-glow hover:text-soft-white cursor-pointer"
+			>
+				Undo
+			</button>
+		</div>
+	{/if}
 
 	<!-- Memories Grid List -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -285,18 +325,19 @@
 					<h2 class="text-sm font-bold text-soft-white pr-10">{memory.title}</h2>
 					<p class="text-xs text-pale-silver leading-relaxed line-clamp-4">{memory.content}</p>
 
-					<!-- Metas -->
+					<!-- Confidence signals -->
 					<div
-						class="flex flex-wrap gap-x-4 gap-y-1.5 pt-3 border-t border-slate-gray/10 text-[10px] text-slate-gray font-mono"
+						class="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-gray/10 text-[10px] font-mono"
 					>
-						<span>Importance: <strong class="text-violet-glow">{memory.importance}/10</strong></span
+						<span class="px-2 py-1 rounded-md bg-violet-glow/10 text-violet-glow"
+							>Importance {memory.importance}/10</span
 						>
-						<span
-							>Confidence: <strong class="text-cyan-glow"
-								>{Math.round(memory.confidence * 100)}%</strong
-							></span
+						<span class="px-2 py-1 rounded-md bg-cyan-glow/10 text-cyan-glow"
+							>{Math.round(memory.confidence * 100)}% confidence</span
 						>
-						<span>Saved: <strong>{new Date(memory.createdAt).toLocaleDateString()}</strong></span>
+						<span class="ml-auto text-slate-gray"
+							>Saved {new Date(memory.createdAt).toLocaleDateString()}</span
+						>
 					</div>
 				{/if}
 			</div>

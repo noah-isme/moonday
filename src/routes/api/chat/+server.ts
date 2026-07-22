@@ -14,13 +14,14 @@ import { eq, asc, and, desc, gt, inArray } from 'drizzle-orm';
 import { aiRouter } from '$lib/server/ai/router';
 import type { ChatStreamChunk } from '$lib/server/ai/types';
 import { classifyEmotion } from '$lib/server/emotion/classify';
-import { retrieveMemories } from '$lib/server/memory/retrieve';
+import { retrieveRelevantMemories } from '$lib/server/memory/retrieve';
 import { extractMemories } from '$lib/server/memory/extract';
 import { saveMemory } from '$lib/server/memory/save';
 import { buildSystemPrompt, compileUserPersona } from '$lib/server/prompts';
 import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import { checkRateLimit } from '$lib/server/rateLimiter';
+import { refreshConversationSummary } from '$lib/server/conversations/summary';
 
 // Helper to seed/get character
 async function getCharacterProfile(characterId?: string) {
@@ -179,7 +180,8 @@ const chatRequestSchema = z.object({
 	reroll: z.boolean().optional(),
 	editId: z.string().uuid().optional(),
 	enableWebSearch: z.boolean().optional(),
-	enableMemoryExtraction: z.boolean().optional()
+	enableMemoryExtraction: z.boolean().optional(),
+	language: z.enum(['auto', 'en', 'id']).optional()
 });
 
 export const POST: RequestHandler = async (event) => {
@@ -239,7 +241,8 @@ export const POST: RequestHandler = async (event) => {
 			reroll,
 			editId,
 			enableWebSearch,
-			enableMemoryExtraction
+			enableMemoryExtraction,
+			language
 		} = validated;
 
 		// 3. Rate Limit Check
@@ -289,9 +292,14 @@ export const POST: RequestHandler = async (event) => {
 				.values({
 					userId: user.id,
 					activeCharacterId: character.id,
-					title: message.substring(0, 30) + (message.length > 30 ? '...' : '')
+					title: `Reflections with ${character.name}`
 				})
 				.returning();
+			await db.insert(messages).values({
+				conversationId: newConv.id,
+				role: 'assistant',
+				content: `Hello! I'm here as ${character.name}. How are you feeling today? Let's navigate your thoughts together.`
+			});
 			conversation = newConv;
 		}
 
@@ -426,17 +434,25 @@ export const POST: RequestHandler = async (event) => {
 
 		// 9. Retrieve relevant memories (semantic search)
 		let memoriesContext = '';
+		let usedMemories: Awaited<ReturnType<typeof retrieveRelevantMemories>> = [];
 		if (env.ENABLE_VECTOR_SEARCH !== 'false') {
-			memoriesContext = await retrieveMemories(user.id, message);
+			usedMemories = await retrieveRelevantMemories(user.id, message);
+			memoriesContext = usedMemories.length
+				? `Relevant memories:\n${usedMemories.map((memory) => `- [${memory.type}] ${memory.content}`).join('\n')}`
+				: '';
 		}
 
-		// 10. Load recent conversation history (up to last 20 messages)
-		const historyRecords = await db
+		// 10. Use a focused, newest-first context window. Fetch one extra record so a
+		// stored recap is only added when it represents earlier context.
+		const HISTORY_WINDOW = 12;
+		const newestHistoryRecords = await db
 			.select()
 			.from(messages)
 			.where(eq(messages.conversationId, conversation.id))
-			.orderBy(asc(messages.createdAt))
-			.limit(20);
+			.orderBy(desc(messages.createdAt))
+			.limit(HISTORY_WINDOW + 1);
+		const hasEarlierHistory = newestHistoryRecords.length > HISTORY_WINDOW;
+		const historyRecords = newestHistoryRecords.slice(0, HISTORY_WINDOW).reverse();
 
 		let history = [...historyRecords];
 		if (reroll) {
@@ -468,7 +484,10 @@ export const POST: RequestHandler = async (event) => {
 			character,
 			memoriesContext,
 			new Date().toISOString(),
-			userPersona
+			userPersona,
+			userMessageRecord.content,
+			language,
+			hasEarlierHistory ? conversation.summary || '' : ''
 		);
 
 		// Construct chat messages list
@@ -506,7 +525,8 @@ export const POST: RequestHandler = async (event) => {
 									emotion: {
 										primaryEmotion: emotionAnalysis.primaryEmotion,
 										moodScore: emotionAnalysis.moodScore
-									}
+									},
+									usedMemories: usedMemories.map(({ id, title, type }) => ({ id, title, type }))
 								})}\n\n`
 							)
 						);
@@ -627,6 +647,8 @@ export const POST: RequestHandler = async (event) => {
 							assistantMessageId = assistantMessage.id;
 						}
 
+						await refreshConversationSummary(conversation.id);
+
 						// Run memory extraction if criteria met
 						let savedMemory = false;
 						if (
@@ -686,6 +708,15 @@ export const POST: RequestHandler = async (event) => {
 						) {
 							code = 'AI_PROVIDER_RATE_LIMIT';
 							errMsg = 'AI provider rate limit reached. Please wait a moment.';
+						} else if (
+							streamError.status === 503 ||
+							streamError.message?.includes('network error') ||
+							streamError.message?.includes('fetch failed') ||
+							streamError.message?.includes('service error')
+						) {
+							code = 'AI_PROVIDER_UNAVAILABLE';
+							errMsg =
+								'The selected AI provider is temporarily unavailable. Check your connection, then retry or choose another provider in Settings.';
 						}
 
 						controller.enqueue(
@@ -771,6 +802,8 @@ export const POST: RequestHandler = async (event) => {
 				});
 			}
 
+			await refreshConversationSummary(conversation.id);
+
 			// Run memory extraction if criteria met
 			let savedMemory = false;
 			if (
@@ -832,6 +865,16 @@ export const POST: RequestHandler = async (event) => {
 			status = 429;
 			code = 'AI_PROVIDER_RATE_LIMIT';
 			message = 'AI provider rate limit reached. Please wait a moment before trying again.';
+		} else if (
+			error.status === 503 ||
+			error.message?.includes('network error') ||
+			error.message?.includes('fetch failed') ||
+			error.message?.includes('service error')
+		) {
+			status = 503;
+			code = 'AI_PROVIDER_UNAVAILABLE';
+			message =
+				'The selected AI provider is temporarily unavailable. Check your connection, then retry or choose another provider in Settings.';
 		} else if (
 			error.message?.includes('db') ||
 			error.message?.includes('database') ||

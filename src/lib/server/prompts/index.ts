@@ -71,16 +71,106 @@ You should not:
 
 Your style should feel like a calm moonlit navigator, not a corporate assistant.
 
+Response shape:
+- Prefer one short reflection and one practical next step over a long lecture.
+- Keep most replies to 2–4 short paragraphs.
+- Do not mechanically repeat or summarize the user's words.
+- Ask at most one genuinely useful question, and only when it helps move the conversation forward.
+
+Natural conversation:
+- Lead with the useful observation, answer, or next step—not a stock empathy opener.
+- Do not begin every reply with “It sounds like,” “I hear you,” or a rephrasing of the user’s message.
+- Do not ask a question when the user has requested a direct answer, a joke, a rewrite, or a concrete task.
+- Vary sentence structure and match the user’s energy without copying their wording.
+- Use remembered context quietly and only if it changes the usefulness of the reply.
+
 🛑 PROMPT HYGIENE & TONE ENFORCEMENT:
 1. NO CONVERSATIONAL FILLERS: NEVER output text like "(tunggu sebentar)", "(searching...)", or "(let me check)". You have a native web access tool; execute the tool silently without narrating your wait times in the chat bubble.
-2. TONE CONSISTENCY: When reading web articles or formal data, DO NOT adopt their dry/corporate HR tone. Synthesize all retrieved facts using your brutally honest, sarcastic, and unhinged persona.
-3. NO SUGARCOATING: Avoid boring corporate disclaimers like "perlu diingat bahwa prediksi tidak selalu akurat". Roast exaggerated claims directly!`;
+2. TONE CONSISTENCY: When reading web articles or formal data, do not adopt a dry or corporate tone. Synthesize facts in the selected character's warm, practical voice.
+3. NO SUGARCOATING: Be direct and helpful without becoming cruel, insulting, or preachy.`;
+
+export type ResponseLanguage = 'English' | 'Indonesian' | 'the user’s language';
+
+const INDONESIAN_SIGNALS = new Set([
+	'aku',
+	'anda',
+	'apa',
+	'atau',
+	'bagaimana',
+	'banget',
+	'belum',
+	'bisa',
+	'dan',
+	'dengan',
+	'di',
+	'dari',
+	'ingin',
+	'ini',
+	'itu',
+	'juga',
+	'kami',
+	'kamu',
+	'karena',
+	'ke',
+	'merasa',
+	'mungkin',
+	'saya',
+	'sudah',
+	'tidak',
+	'untuk',
+	'yang'
+]);
+
+const ENGLISH_SIGNALS = new Set([
+	'a',
+	'about',
+	'and',
+	'are',
+	'can',
+	'do',
+	'feel',
+	'for',
+	'help',
+	'i',
+	'in',
+	'is',
+	'it',
+	'me',
+	'my',
+	'of',
+	'on',
+	'the',
+	'this',
+	'to',
+	'was',
+	'what',
+	'with',
+	'you',
+	'your'
+]);
+
+/**
+ * Keep language selection deliberately small and transparent for v0.1. The model
+ * still handles other languages; this only makes English and Indonesian unambiguous.
+ */
+export function detectResponseLanguage(message: string): ResponseLanguage {
+	const words = message.toLocaleLowerCase().match(/[\p{L}']+/gu) ?? [];
+	const indonesianCount = words.filter((word) => INDONESIAN_SIGNALS.has(word)).length;
+	const englishCount = words.filter((word) => ENGLISH_SIGNALS.has(word)).length;
+
+	if (englishCount > indonesianCount) return 'English';
+	if (indonesianCount > englishCount) return 'Indonesian';
+	return 'the user’s language';
+}
 
 export function buildSystemPrompt(
 	character: CharacterProfile = DEFAULT_CHARACTER,
 	memoriesContext: string = '',
 	currentDate: string = new Date().toISOString(),
-	userPersona: string = ''
+	userPersona: string = '',
+	latestUserMessage: string = '',
+	languagePreference: 'auto' | 'en' | 'id' = 'auto',
+	conversationSummary: string = ''
 ): string {
 	let prompt = '';
 	if (userPersona) {
@@ -109,6 +199,19 @@ export function buildSystemPrompt(
 	if (memoriesContext) {
 		prompt += `\n\n[Relevant Memories]\n${memoriesContext}`;
 	}
+
+	if (conversationSummary) {
+		prompt += `\n\n[Conversation Recap]\n${conversationSummary}`;
+	}
+
+	const responseLanguage =
+		languagePreference === 'en'
+			? 'English'
+			: languagePreference === 'id'
+				? 'Indonesian'
+				: detectResponseLanguage(latestUserMessage);
+	prompt += `\n\n[Language]
+Reply in ${responseLanguage}. Match the user's language for this turn; do not switch to Indonesian because examples, memories, or earlier messages are in Indonesian. If the message genuinely mixes languages, use the language that carries the user's question.`;
 
 	// Contextual Information
 	prompt += `\n\n[Contextual Information]\nCurrent timestamp is: ${currentDate}`;

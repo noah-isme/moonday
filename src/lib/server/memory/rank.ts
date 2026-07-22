@@ -28,6 +28,11 @@ export interface MemoryToRank {
 	content: string;
 	similarity: number;
 	createdAt: Date;
+	importance?: number;
+	confidence?: number;
+	lastReferencedAt?: Date | null;
+	updatedAt?: Date;
+	isSensitive?: boolean;
 }
 
 export interface RankedMemory {
@@ -37,7 +42,15 @@ export interface RankedMemory {
 	content: string;
 	similarity: number;
 	recency: number;
+	importance: number;
+	confidence: number;
+	isSensitive: boolean;
 	score: number;
+}
+
+export interface MemoryRankingOptions {
+	limit?: number;
+	includeSensitive?: boolean;
 }
 
 /**
@@ -46,11 +59,28 @@ export interface RankedMemory {
  * @param memories Array of memories to rank
  * @returns Sorted array of the top 5 ranked memories
  */
-export function rankAndFilterMemories(memories: Array<MemoryToRank>): Array<RankedMemory> {
+export function rankAndFilterMemories(
+	memories: Array<MemoryToRank>,
+	options: MemoryRankingOptions = {}
+): Array<RankedMemory> {
+	const limit = options.limit ?? 5;
 	return memories
+		.filter((memory) => options.includeSensitive || !memory.isSensitive)
 		.map((memory) => {
-			const recency = calculateRecencyScore(memory.createdAt);
-			const score = calculateHybridScore(memory.similarity, memory.createdAt);
+			const mostRecentSignal = memory.lastReferencedAt || memory.updatedAt || memory.createdAt;
+			const recency = calculateRecencyScore(mostRecentSignal);
+			const importance = Math.min(10, Math.max(1, memory.importance ?? 5));
+			const confidence = Math.min(1, Math.max(0, memory.confidence ?? 0.5));
+			// Preserve the original hybrid score for legacy callers/tests, then enrich it
+			// with durable signals when they are available from the database.
+			const hasContextualSignals =
+				memory.importance !== undefined ||
+				memory.confidence !== undefined ||
+				memory.lastReferencedAt !== undefined ||
+				memory.updatedAt !== undefined;
+			const score = hasContextualSignals
+				? memory.similarity * 0.55 + (importance / 10) * 0.2 + confidence * 0.15 + recency * 0.1
+				: calculateHybridScore(memory.similarity, memory.createdAt);
 			return {
 				id: memory.id,
 				type: memory.type,
@@ -58,9 +88,12 @@ export function rankAndFilterMemories(memories: Array<MemoryToRank>): Array<Rank
 				content: memory.content,
 				similarity: memory.similarity,
 				recency,
+				importance,
+				confidence,
+				isSensitive: memory.isSensitive ?? false,
 				score
 			};
 		})
 		.sort((a, b) => b.score - a.score)
-		.slice(0, 5);
+		.slice(0, limit);
 }

@@ -49,7 +49,7 @@
 <div class="flex flex-col md:flex-row min-h-screen bg-deep-navy text-soft-white antialiased">
 	<!-- Left Sidebar (Desktop) -->
 	<aside
-		class="hidden md:flex flex-col w-72 bg-soft-dark-blue border-r border-slate-gray/10 p-6 flex-shrink-0 select-none"
+		class="hidden md:flex flex-col w-64 bg-soft-dark-blue border-r border-slate-gray/10 p-5 flex-shrink-0 select-none"
 	>
 		<!-- App Brand Header -->
 		<div class="flex items-center gap-2 mb-6">
@@ -62,9 +62,9 @@
 
 		<!-- Global Avatar Space -->
 		<div
-			class="flex flex-col items-center justify-center my-6 py-4 bg-deep-navy/30 rounded-3xl border border-slate-gray/5"
+			class="flex flex-col items-center justify-center my-4 py-3 bg-deep-navy/30 rounded-3xl border border-slate-gray/5"
 		>
-			<div class="w-32 h-32 flex items-center justify-center">
+			<div class="w-28 h-28 flex items-center justify-center">
 				<AvatarMoon state={uiStore.moonState} />
 			</div>
 			<div class="mt-4 text-center">
@@ -79,13 +79,13 @@
 		</div>
 
 		<!-- Navigation Menu -->
-		<nav class="flex-1 space-y-1.5 mt-4">
+		<nav class="flex-1 space-y-1.5 mt-3">
 			{#each navItems as item}
 				{@const isActive =
 					currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 				<a
 					href={item.href}
-					class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group {isActive
+					class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group {isActive
 						? 'bg-violet-glow text-deep-navy font-bold'
 						: 'text-pale-silver hover:bg-slate-gray/5 hover:text-soft-white'}"
 				>
@@ -130,15 +130,38 @@
 	</header>
 
 	<!-- Main App Content Area -->
-	<main class="flex-1 flex flex-col min-h-0 relative pb-16 md:pb-0 overflow-y-auto">
+	<main
+		class="flex-1 flex flex-col min-h-0 relative pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0 overflow-y-auto"
+	>
 		<div class="max-w-5xl w-full mx-auto p-4 sm:p-6 md:p-8 flex-1 flex flex-col">
 			{@render children()}
 		</div>
 	</main>
 
+	{#if uiStore.notice}
+		<div
+			role="status"
+			class="fixed top-4 right-4 z-50 max-w-sm flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl text-sm font-medium {uiStore
+				.notice.tone === 'error'
+				? 'bg-soft-red/15 border-soft-red/30 text-soft-white'
+				: uiStore.notice.tone === 'info'
+					? 'bg-cyan-glow/15 border-cyan-glow/30 text-soft-white'
+					: 'bg-calm-green/15 border-calm-green/30 text-soft-white'}"
+		>
+			<span aria-hidden="true">{uiStore.notice.tone === 'error' ? '!' : '✓'}</span>
+			<span>{uiStore.notice.message}</span>
+			<button
+				type="button"
+				onclick={() => uiStore.clearNotice()}
+				aria-label="Dismiss notification"
+				class="ml-1 text-slate-gray hover:text-soft-white cursor-pointer">×</button
+			>
+		</div>
+	{/if}
+
 	<!-- Mobile Bottom Navigation Bar -->
 	<nav
-		class="flex md:hidden fixed bottom-0 left-0 right-0 h-16 bg-soft-dark-blue/95 backdrop-blur-md border-t border-slate-gray/10 z-40 justify-around items-center px-2 select-none"
+		class="flex md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-soft-dark-blue/95 backdrop-blur-md border-t border-slate-gray/10 z-40 justify-around items-center px-2 select-none"
 	>
 		{#each navItems as item}
 			{@const isActive =

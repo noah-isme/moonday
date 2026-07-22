@@ -7,6 +7,8 @@ export interface ChatMessage {
 	id: string;
 	role: 'user' | 'assistant' | 'system';
 	content: string;
+	/** True once this message has a durable database ID. */
+	persisted?: boolean;
 	emotionLabel?: string;
 	moodScore?: number;
 	status?: string;
@@ -17,11 +19,19 @@ export interface Conversation {
 	id: string;
 	title: string;
 	activeCharacterId: string;
+	/** UI-facing tone; the persisted character ID is a database UUID. */
+	characterTone?: string;
 	summary?: string;
 	lastEmotionLabel?: string;
 	lastMoodScore?: number;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface UsedMemoryContext {
+	id: string;
+	title: string;
+	type: string;
 }
 
 export class ChatStore {
@@ -33,9 +43,21 @@ export class ChatStore {
 	isRerolling = $state<boolean>(false);
 	isWebSearchEnabled = $state<boolean>(false);
 	error = $state<string | null>(null);
+	usedMemories = $state<UsedMemoryContext[]>([]);
+	lastSentMessage = $state<string | null>(null);
+	isLoading = $state<boolean>(false);
+	private isCreatingConversation = false;
 
 	toggleWebSearch() {
 		this.isWebSearchEnabled = !this.isWebSearchEnabled;
+	}
+
+	dismissUsedMemory(id: string) {
+		this.usedMemories = this.usedMemories.filter((memory) => memory.id !== id);
+	}
+
+	async retryLastMessage() {
+		if (this.lastSentMessage) await this.sendMessage(this.lastSentMessage);
 	}
 
 	activeConversation = $derived.by(() => {
@@ -49,36 +71,12 @@ export class ChatStore {
 
 	constructor() {
 		if (browser) {
-			const savedConvs = localStorage.getItem('moonday_conversations');
-			const savedMsgs = localStorage.getItem('moonday_messages');
-
-			if (savedConvs) {
-				try {
-					this.conversations = JSON.parse(savedConvs);
-				} catch (e) {
-					console.error('Failed to parse conversations:', e);
-				}
-			}
-
-			if (savedMsgs) {
-				try {
-					this.messages = JSON.parse(savedMsgs);
-				} catch (e) {
-					console.error('Failed to parse messages:', e);
-				}
-			}
-
-			if (this.conversations.length > 0) {
-				this.activeId = this.conversations[0].id;
-			} else {
-				this.createNewConversation();
-			}
-
 			void this.hydrateFromServer();
 		}
 	}
 
 	private async hydrateFromServer() {
+		this.isLoading = true;
 		try {
 			const response = await fetch('/api/conversations');
 			if (!response.ok) throw new Error('Unable to load conversations');
@@ -89,12 +87,26 @@ export class ChatStore {
 			};
 			if (data.conversations.length > 0) {
 				this.conversations = data.conversations;
-				this.messages = data.messages;
-				this.activeId = data.conversations[0].id;
-				this.saveToLocalStorage();
+				this.messages = Object.fromEntries(
+					Object.entries(data.messages).map(([conversationId, messages]) => [
+						conversationId,
+						messages.map((message) => ({ ...message, persisted: true }))
+					])
+				);
+				// Keep the selected server conversation when refreshing; otherwise open the most recent one.
+				this.activeId =
+					this.activeId &&
+					data.conversations.some((conversation) => conversation.id === this.activeId)
+						? this.activeId
+						: data.conversations[0].id;
+			} else {
+				await this.createNewConversation();
 			}
 		} catch (error) {
-			console.warn('Unable to load saved conversations; using local chat history.', error);
+			console.warn('Unable to load saved conversations.', error);
+			this.error = 'Unable to load saved conversations. Please refresh and try again.';
+		} finally {
+			this.isLoading = false;
 		}
 	}
 
@@ -114,7 +126,11 @@ export class ChatStore {
 		const currentMessages = this.messages[conversationId] || [];
 		for (let index = currentMessages.length - 1; index >= 0; index--) {
 			if (currentMessages[index].role === 'user') {
-				currentMessages[index] = { ...currentMessages[index], id: userMessageId };
+				currentMessages[index] = {
+					...currentMessages[index],
+					id: userMessageId,
+					persisted: true
+				};
 				this.messages[conversationId] = [...currentMessages];
 				break;
 			}
@@ -132,40 +148,36 @@ export class ChatStore {
 	}
 
 	saveToLocalStorage() {
-		if (browser) {
-			localStorage.setItem('moonday_conversations', JSON.stringify(this.conversations));
-			localStorage.setItem('moonday_messages', JSON.stringify(this.messages));
-		}
+		// Conversations and messages are database-backed. Intentionally do not cache
+		// them locally, which prevents stale browser-only chat sessions.
 	}
 
-	createNewConversation() {
-		const newId = crypto.randomUUID();
-		const newConv: Conversation = {
-			id: newId,
-			title: `Reflections with ${characterStore.activeCharacter.name}`,
-			activeCharacterId: characterStore.activeId,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
-		};
-
-		this.conversations = [newConv, ...this.conversations];
-		this.messages[newId] = [
-			{
-				id: crypto.randomUUID(),
-				role: 'system',
-				content: `You are chatting with ${characterStore.activeCharacter.name}.`,
-				createdAt: new Date().toISOString()
-			},
-			{
-				id: crypto.randomUUID(),
-				role: 'assistant',
-				content: `Hello! I'm here as ${characterStore.activeCharacter.name}. How are you feeling today? Let's navigate your thoughts together.`,
-				createdAt: new Date().toISOString()
-			}
-		];
-		this.activeId = newId;
-		this.saveToLocalStorage();
-		return newConv;
+	async createNewConversation() {
+		if (this.isCreatingConversation) return null;
+		this.isCreatingConversation = true;
+		this.error = null;
+		try {
+			const response = await fetch('/api/conversations', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ characterId: characterStore.activeId })
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			const data = (await response.json()) as {
+				conversation: Conversation;
+				messages: ChatMessage[];
+			};
+			const persistedMessages = data.messages.map((message) => ({ ...message, persisted: true }));
+			this.conversations = [data.conversation, ...this.conversations];
+			this.messages[data.conversation.id] = persistedMessages;
+			this.activeId = data.conversation.id;
+			return data.conversation;
+		} catch (error) {
+			this.error = error instanceof Error ? error.message : 'Unable to create a new conversation.';
+			return null;
+		} finally {
+			this.isCreatingConversation = false;
+		}
 	}
 
 	selectConversation(id: string) {
@@ -174,36 +186,61 @@ export class ChatStore {
 			// Sync character to match conversation context if possible
 			const conv = this.conversations.find((c) => c.id === id);
 			if (conv) {
-				characterStore.selectCharacter(conv.activeCharacterId);
+				characterStore.selectCharacter(conv.characterTone || conv.activeCharacterId);
 			}
 		}
 	}
 
-	deleteConversation(id: string) {
-		this.conversations = this.conversations.filter((c) => c.id !== id);
-		delete this.messages[id];
-		this.saveToLocalStorage();
+	async deleteConversation(id: string) {
+		if (this.isThinking || this.isStreaming) return false;
+		this.error = null;
+		try {
+			const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+			if (!response.ok) throw new Error(await this.getResponseError(response));
 
-		if (this.activeId === id) {
-			if (this.conversations.length > 0) {
-				this.activeId = this.conversations[0].id;
-			} else {
-				this.createNewConversation();
+			const remainingConversations = this.conversations.filter(
+				(conversation) => conversation.id !== id
+			);
+			this.conversations = remainingConversations;
+			delete this.messages[id];
+
+			if (this.activeId === id) {
+				this.activeId = remainingConversations[0]?.id ?? null;
+				if (!this.activeId) await this.createNewConversation();
 			}
+			return true;
+		} catch (error) {
+			this.error = error instanceof Error ? error.message : 'Unable to delete this conversation.';
+			return false;
 		}
 	}
 
-	updateConversationTitle(id: string, newTitle: string) {
-		const conv = this.conversations.find((c) => c.id === id);
-		if (conv) {
-			conv.title = newTitle;
-			conv.updatedAt = new Date().toISOString();
-			this.saveToLocalStorage();
+	async updateConversationTitle(id: string, newTitle: string) {
+		this.error = null;
+		try {
+			const response = await fetch(`/api/conversations/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title: newTitle })
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			const { conversation } = (await response.json()) as { conversation: Conversation };
+			this.conversations = this.conversations.map((item) =>
+				item.id === id ? { ...item, ...conversation } : item
+			);
+			return true;
+		} catch (error) {
+			this.error = error instanceof Error ? error.message : 'Unable to rename this conversation.';
+			return false;
 		}
 	}
 
 	async sendMessage(content: string) {
-		if (!content.trim() || !this.activeId) return;
+		if (!content.trim()) return;
+		if (!this.activeId) await this.createNewConversation();
+		if (!this.activeId) return;
+		this.lastSentMessage = content.trim();
+		this.usedMemories = [];
 
 		// 1. Add User Message
 		const userMsg: ChatMessage = {
@@ -235,6 +272,7 @@ export class ChatStore {
 					message: content,
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
+					language: settingsStore.responseLanguage,
 					stream: true,
 					enableWebSearch: this.isWebSearchEnabled,
 					enableMemoryExtraction: settingsStore.memoryExtractionEnabled
@@ -298,6 +336,7 @@ export class ChatStore {
 							try {
 								const data = JSON.parse(jsonStr);
 								if (data.type === 'start') {
+									this.usedMemories = Array.isArray(data.usedMemories) ? data.usedMemories : [];
 									this.adoptServerIds(localConversationId, data.conversationId, data.userMessageId);
 									let emotionLabel = 'neutral';
 									let moodScore = 0;
@@ -322,13 +361,13 @@ export class ChatStore {
 									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
-									if (data.assistantMessageId) {
-										updateMessage({ id: data.assistantMessageId });
-									}
 									const currentMsgs = this.messages[this.activeId!] || [];
 									const msg = currentMsgs.find((m) => m.id === assistantMsgId);
 									const finalEmotionLabel = msg?.emotionLabel;
 									const finalMoodScore = msg?.moodScore;
+									if (data.assistantMessageId) {
+										updateMessage({ id: data.assistantMessageId, persisted: true });
+									}
 
 									const conv = this.conversations.find((c) => c.id === this.activeId);
 									if (conv) {
@@ -338,7 +377,9 @@ export class ChatStore {
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
-									throw new Error(data.error?.message || 'Error in stream');
+									this.error = data.error?.message || 'MOONDAY could not complete this reply.';
+									uiStore.setMoonState('idle');
+									return;
 								}
 							} catch (e) {
 								console.error('Error parsing SSE line:', e);
@@ -378,7 +419,8 @@ export class ChatStore {
 	async editMessage(messageId: string, newContent: string) {
 		if (!newContent.trim() || !this.activeId) return;
 
-		const currentMsgs = this.messages[this.activeId] || [];
+		const conversationId = this.activeId;
+		const currentMsgs = this.messages[conversationId] || [];
 		const index = currentMsgs.findIndex((m) => m.id === messageId);
 		if (index === -1) return;
 
@@ -389,7 +431,7 @@ export class ChatStore {
 			...slicedMsgs[index],
 			content: newContent
 		};
-		this.messages[this.activeId] = slicedMsgs;
+		this.messages[conversationId] = slicedMsgs;
 
 		this.isThinking = true;
 		this.error = null;
@@ -405,10 +447,11 @@ export class ChatStore {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					conversationId: this.activeId,
+					conversationId,
 					message: newContent,
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
+					language: settingsStore.responseLanguage,
 					stream: true,
 					editId: messageId,
 					enableWebSearch: this.isWebSearchEnabled,
@@ -435,17 +478,17 @@ export class ChatStore {
 				content: '',
 				createdAt: new Date().toISOString()
 			};
-			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
+			this.messages[conversationId] = [...(this.messages[conversationId] || []), assistantMsg];
 
 			const updateMessage = (updates: Partial<ChatMessage>) => {
-				const msgs = this.messages[this.activeId!] || [];
+				const msgs = this.messages[conversationId] || [];
 				const idx = msgs.findIndex((m) => m.id === assistantMsgId);
 				if (idx !== -1) {
 					msgs[idx] = {
 						...msgs[idx],
 						...updates
 					};
-					this.messages[this.activeId!] = [...msgs];
+					this.messages[conversationId] = [...msgs];
 				}
 			};
 
@@ -496,12 +539,15 @@ export class ChatStore {
 									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
-									const msgs = this.messages[this.activeId!] || [];
+									const msgs = this.messages[conversationId] || [];
 									const msg = msgs.find((m) => m.id === assistantMsgId);
 									const finalEmotionLabel = msg?.emotionLabel;
 									const finalMoodScore = msg?.moodScore;
+									if (data.assistantMessageId) {
+										updateMessage({ id: data.assistantMessageId, persisted: true });
+									}
 
-									const conv = this.conversations.find((c) => c.id === this.activeId);
+									const conv = this.conversations.find((c) => c.id === conversationId);
 									if (conv) {
 										conv.lastEmotionLabel = finalEmotionLabel;
 										conv.lastMoodScore = finalMoodScore;
@@ -509,7 +555,9 @@ export class ChatStore {
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
-									throw new Error(data.error?.message || 'Error in stream');
+									this.error = data.error?.message || 'MOONDAY could not complete this reply.';
+									uiStore.setMoonState('idle');
+									return;
 								}
 							} catch (e) {
 								console.error('Error parsing SSE line:', e);
@@ -523,7 +571,7 @@ export class ChatStore {
 					try {
 						const data = JSON.parse(jsonStr);
 						if (data.type === 'token') {
-							const msgs = this.messages[this.activeId!] || [];
+							const msgs = this.messages[conversationId] || [];
 							const msg = msgs.find((m) => m.id === assistantMsgId);
 							const currentContent = msg ? msg.content : '';
 							updateMessage({ content: currentContent + data.content });
@@ -539,7 +587,17 @@ export class ChatStore {
 		} catch (err) {
 			uiStore.setMoonState('idle');
 			console.error('Error during edit message streaming:', err);
-			this.error = err instanceof Error ? err.message : 'Streaming interrupted.';
+			const errorMessage = err instanceof Error ? err.message : 'Streaming interrupted.';
+			if (errorMessage === 'Message to edit not found') {
+				// This can occur for conversations retained in localStorage before server IDs
+				// were introduced. Do not leave the user with a truncated local transcript.
+				this.messages[conversationId] = currentMsgs;
+				await this.hydrateFromServer();
+				this.error =
+					'This older local message is no longer available to edit. Your saved conversation was refreshed.';
+			} else {
+				this.error = errorMessage;
+			}
 			this.isStreaming = false;
 			this.isThinking = false;
 		} finally {
@@ -566,6 +624,7 @@ export class ChatStore {
 
 		if (assistantMsgIdx === -1) return;
 		const assistantMsg = currentMsgs[assistantMsgIdx];
+		const conversationId = this.activeId;
 
 		// Find the user message before that assistant message.
 		let userMsg: ChatMessage | null = null;
@@ -592,10 +651,11 @@ export class ChatStore {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					conversationId: this.activeId,
+					conversationId,
 					message: userMsg.content,
 					characterId: characterStore.activeId,
 					provider: settingsStore.provider,
+					language: settingsStore.responseLanguage,
 					stream: true,
 					reroll: true,
 					enableWebSearch: this.isWebSearchEnabled,
@@ -619,14 +679,14 @@ export class ChatStore {
 			const assistantMsgId = assistantMsg.id;
 
 			const updateMessage = (updates: Partial<ChatMessage>) => {
-				const msgs = this.messages[this.activeId!] || [];
+				const msgs = this.messages[conversationId] || [];
 				const idx = msgs.findIndex((m) => m.id === assistantMsgId);
 				if (idx !== -1) {
 					msgs[idx] = {
 						...msgs[idx],
 						...updates
 					};
-					this.messages[this.activeId!] = [...msgs];
+					this.messages[conversationId] = [...msgs];
 				}
 			};
 
@@ -679,12 +739,15 @@ export class ChatStore {
 									updateMessage(updates);
 									uiStore.setMoonState('speaking');
 								} else if (data.type === 'done') {
-									const msgs = this.messages[this.activeId!] || [];
+									const msgs = this.messages[conversationId] || [];
 									const msg = msgs.find((m) => m.id === assistantMsgId);
 									const finalEmotionLabel = msg?.emotionLabel;
 									const finalMoodScore = msg?.moodScore;
+									if (data.assistantMessageId) {
+										updateMessage({ id: data.assistantMessageId, persisted: true });
+									}
 
-									const conv = this.conversations.find((c) => c.id === this.activeId);
+									const conv = this.conversations.find((c) => c.id === conversationId);
 									if (conv) {
 										conv.lastEmotionLabel = finalEmotionLabel;
 										conv.lastMoodScore = finalMoodScore;
@@ -692,7 +755,9 @@ export class ChatStore {
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
-									throw new Error(data.error?.message || 'Error in stream');
+									this.error = data.error?.message || 'MOONDAY could not complete this reply.';
+									uiStore.setMoonState('idle');
+									return;
 								}
 							} catch (e) {
 								console.error('Error parsing SSE line:', e);
@@ -706,7 +771,7 @@ export class ChatStore {
 					try {
 						const data = JSON.parse(jsonStr);
 						if (data.type === 'token') {
-							const msgs = this.messages[this.activeId!] || [];
+							const msgs = this.messages[conversationId] || [];
 							const msg = msgs.find((m) => m.id === assistantMsgId);
 							const currentContent = msg ? msg.content : '';
 							updateMessage({ content: currentContent + data.content });

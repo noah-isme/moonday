@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 export class SettingsStore {
 	provider = $state<'deepseek' | 'claude' | 'groq'>('deepseek');
 	model = $state<string>('deepseek-chat');
+	responseLanguage = $state<'auto' | 'en' | 'id'>('auto');
 	voiceInputEnabled = $state<boolean>(true);
 	voiceOutputEnabled = $state<boolean>(true);
 	memoryExtractionEnabled = $state<boolean>(true);
@@ -15,6 +16,7 @@ export class SettingsStore {
 					const parsed = JSON.parse(saved);
 					if (parsed.provider) this.provider = parsed.provider;
 					if (parsed.model) this.model = parsed.model;
+					if (parsed.responseLanguage) this.responseLanguage = parsed.responseLanguage;
 					if (parsed.voiceInputEnabled !== undefined)
 						this.voiceInputEnabled = parsed.voiceInputEnabled;
 					if (parsed.voiceOutputEnabled !== undefined)
@@ -34,6 +36,7 @@ export class SettingsStore {
 						JSON.stringify({
 							provider: this.provider,
 							model: this.model,
+							responseLanguage: this.responseLanguage,
 							voiceInputEnabled: this.voiceInputEnabled,
 							voiceOutputEnabled: this.voiceOutputEnabled,
 							memoryExtractionEnabled: this.memoryExtractionEnabled
@@ -57,6 +60,10 @@ export class SettingsStore {
 
 	setModel(model: string) {
 		this.model = model;
+	}
+
+	setResponseLanguage(language: 'auto' | 'en' | 'id') {
+		this.responseLanguage = language;
 	}
 
 	toggleVoiceInput() {
