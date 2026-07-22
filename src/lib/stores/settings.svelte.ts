@@ -7,6 +7,9 @@ export class SettingsStore {
 	voiceInputEnabled = $state<boolean>(true);
 	voiceOutputEnabled = $state<boolean>(true);
 	memoryExtractionEnabled = $state<boolean>(true);
+	proactiveCheckInsEnabled = $state<boolean>(true);
+	proactiveCheckInFrequency = $state<'daily' | 'weekdays'>('daily');
+	proactiveCheckInTime = $state<'morning' | 'afternoon' | 'evening'>('morning');
 
 	constructor() {
 		if (browser) {
@@ -23,6 +26,15 @@ export class SettingsStore {
 						this.voiceOutputEnabled = parsed.voiceOutputEnabled;
 					if (parsed.memoryExtractionEnabled !== undefined)
 						this.memoryExtractionEnabled = parsed.memoryExtractionEnabled;
+					if (parsed.proactiveCheckInsEnabled !== undefined)
+						this.proactiveCheckInsEnabled = parsed.proactiveCheckInsEnabled;
+					if (
+						parsed.proactiveCheckInFrequency === 'daily' ||
+						parsed.proactiveCheckInFrequency === 'weekdays'
+					)
+						this.proactiveCheckInFrequency = parsed.proactiveCheckInFrequency;
+					if (['morning', 'afternoon', 'evening'].includes(parsed.proactiveCheckInTime))
+						this.proactiveCheckInTime = parsed.proactiveCheckInTime;
 				} catch (e) {
 					console.error('Failed to parse saved settings:', e);
 				}
@@ -39,7 +51,10 @@ export class SettingsStore {
 							responseLanguage: this.responseLanguage,
 							voiceInputEnabled: this.voiceInputEnabled,
 							voiceOutputEnabled: this.voiceOutputEnabled,
-							memoryExtractionEnabled: this.memoryExtractionEnabled
+							memoryExtractionEnabled: this.memoryExtractionEnabled,
+							proactiveCheckInsEnabled: this.proactiveCheckInsEnabled,
+							proactiveCheckInFrequency: this.proactiveCheckInFrequency,
+							proactiveCheckInTime: this.proactiveCheckInTime
 						})
 					);
 				});
@@ -76,6 +91,18 @@ export class SettingsStore {
 
 	toggleMemoryExtraction() {
 		this.memoryExtractionEnabled = !this.memoryExtractionEnabled;
+	}
+
+	toggleProactiveCheckIns() {
+		this.proactiveCheckInsEnabled = !this.proactiveCheckInsEnabled;
+	}
+
+	setProactiveCheckInFrequency(frequency: 'daily' | 'weekdays') {
+		this.proactiveCheckInFrequency = frequency;
+	}
+
+	setProactiveCheckInTime(time: 'morning' | 'afternoon' | 'evening') {
+		this.proactiveCheckInTime = time;
 	}
 
 	async clearAllData() {

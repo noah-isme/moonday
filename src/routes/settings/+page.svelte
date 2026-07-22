@@ -17,6 +17,7 @@
 		companion: false,
 		ai: false,
 		voice: false,
+		continuity: false,
 		privacy: false
 	});
 
@@ -27,6 +28,7 @@
 				companion: true,
 				ai: true,
 				voice: true,
+				continuity: true,
 				privacy: true
 			};
 		}
@@ -543,6 +545,92 @@
 					</button>
 				</div>
 			</div>
+		</div>
+	</details>
+
+	<!-- Daily continuity preferences -->
+	<details
+		bind:open={expandedSections.continuity}
+		class="settings-section bg-[#141b2b] border border-[rgba(255,255,255,0.05)] rounded-3xl p-5 md:p-6 shadow-xl"
+	>
+		<summary class="flex items-center justify-between gap-3 cursor-pointer">
+			<span class="text-sm font-bold text-pale-silver uppercase tracking-wider"
+				>Daily continuity</span
+			>
+			<svg
+				class="settings-chevron w-4 h-4 text-slate-gray"
+				viewBox="0 0 20 20"
+				fill="none"
+				aria-hidden="true"
+			>
+				<path
+					d="m5 7.5 5 5 5-5"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+		</summary>
+		<div class="pt-4 space-y-4">
+			<p class="text-xs text-slate-gray">
+				Show one optional, on-device daily prompt based on your approved goals, latest check-in, or
+				unfinished conversation thread. MOONDAY never sends background notifications in v0.1.
+			</p>
+			<div
+				class="flex items-center justify-between rounded-xl border border-slate-gray/10 bg-deep-navy/35 p-3"
+			>
+				<div>
+					<p class="text-xs font-semibold text-pale-silver">Daily check-ins</p>
+					<p class="text-[10px] text-slate-gray">You can always dismiss or start fresh.</p>
+				</div>
+				<button
+					onclick={() => settingsStore.toggleProactiveCheckIns()}
+					aria-label="Toggle daily check-ins"
+					aria-pressed={settingsStore.proactiveCheckInsEnabled}
+					class="w-9 h-5 rounded-full p-0.5 transition-colors {settingsStore.proactiveCheckInsEnabled
+						? 'bg-violet-glow'
+						: 'bg-slate-gray/30'}"
+				>
+					<div
+						class="w-4 h-4 rounded-full bg-soft-white transition-transform"
+						class:translate-x-4={settingsStore.proactiveCheckInsEnabled}
+					></div>
+				</button>
+			</div>
+			{#if settingsStore.proactiveCheckInsEnabled}
+				<div class="grid gap-3 sm:grid-cols-2">
+					<label class="text-xs text-slate-gray"
+						>Frequency
+						<select
+							value={settingsStore.proactiveCheckInFrequency}
+							onchange={(event) =>
+								settingsStore.setProactiveCheckInFrequency(
+									(event.currentTarget as HTMLSelectElement).value as 'daily' | 'weekdays'
+								)}
+							class="mt-1.5 w-full rounded-xl border border-slate-gray/10 bg-deep-navy p-2.5 text-xs text-pale-silver"
+						>
+							<option value="daily">Every day</option><option value="weekdays">Weekdays only</option
+							>
+						</select>
+					</label>
+					<label class="text-xs text-slate-gray"
+						>Preferred time
+						<select
+							value={settingsStore.proactiveCheckInTime}
+							onchange={(event) =>
+								settingsStore.setProactiveCheckInTime(
+									(event.currentTarget as HTMLSelectElement).value as
+										'morning' | 'afternoon' | 'evening'
+								)}
+							class="mt-1.5 w-full rounded-xl border border-slate-gray/10 bg-deep-navy p-2.5 text-xs text-pale-silver"
+						>
+							<option value="morning">Morning</option><option value="afternoon">Afternoon</option
+							><option value="evening">Evening</option>
+						</select>
+					</label>
+				</div>
+			{/if}
 		</div>
 	</details>
 

@@ -16,7 +16,7 @@ import type { ChatStreamChunk } from '$lib/server/ai/types';
 import { classifyEmotion } from '$lib/server/emotion/classify';
 import { retrieveRelevantMemories } from '$lib/server/memory/retrieve';
 import { extractMemories } from '$lib/server/memory/extract';
-import { saveMemory } from '$lib/server/memory/save';
+import type { ExtractedMemory } from '$lib/server/memory/types';
 import { buildSystemPrompt, compileUserPersona } from '$lib/server/prompts';
 import { env } from '$env/dynamic/private';
 import { z } from 'zod';
@@ -181,6 +181,7 @@ const chatRequestSchema = z.object({
 	editId: z.string().uuid().optional(),
 	enableWebSearch: z.boolean().optional(),
 	enableMemoryExtraction: z.boolean().optional(),
+	doNotRemember: z.boolean().optional(),
 	language: z.enum(['auto', 'en', 'id']).optional()
 });
 
@@ -242,6 +243,7 @@ export const POST: RequestHandler = async (event) => {
 			editId,
 			enableWebSearch,
 			enableMemoryExtraction,
+			doNotRemember,
 			language
 		} = validated;
 
@@ -649,10 +651,12 @@ export const POST: RequestHandler = async (event) => {
 
 						await refreshConversationSummary(conversation.id);
 
-						// Run memory extraction if criteria met
-						let savedMemory = false;
+						// Memory suggestions are review-first: nothing is stored until the user accepts it.
+						let pendingMemories: ExtractedMemory[] = [];
 						if (
 							enableMemoryExtraction !== false &&
+							conversation.memoryExtractionEnabled !== false &&
+							doNotRemember !== true &&
 							env.ENABLE_MEMORY_EXTRACTION !== 'false' &&
 							emotionAnalysis.shouldStoreMemory
 						) {
@@ -661,19 +665,7 @@ export const POST: RequestHandler = async (event) => {
 									role: h.role as 'system' | 'user' | 'assistant',
 									content: h.content
 								}));
-								const extracted = await extractMemories(message, context);
-
-								for (const ext of extracted) {
-									const savedId = await saveMemory(
-										user.id,
-										ext,
-										conversation.id,
-										userMessageRecord.id
-									);
-									if (savedId) {
-										savedMemory = true;
-									}
-								}
+								pendingMemories = await extractMemories(message, context);
 							} catch (err) {
 								console.error('Error in memory extraction background task:', err);
 							}
@@ -684,8 +676,11 @@ export const POST: RequestHandler = async (event) => {
 							encoder.encode(
 								`data: ${JSON.stringify({
 									type: 'done',
-									savedMemory,
-									assistantMessageId
+									savedMemory: false,
+									pendingMemories,
+									assistantMessageId,
+									conversationId: conversation.id,
+									userMessageId: userMessageRecord.id
 								})}\n\n`
 							)
 						);
@@ -804,10 +799,12 @@ export const POST: RequestHandler = async (event) => {
 
 			await refreshConversationSummary(conversation.id);
 
-			// Run memory extraction if criteria met
-			let savedMemory = false;
+			// Memory suggestions are review-first: nothing is stored until the user accepts it.
+			let pendingMemories: ExtractedMemory[] = [];
 			if (
 				enableMemoryExtraction !== false &&
+				conversation.memoryExtractionEnabled !== false &&
+				doNotRemember !== true &&
 				env.ENABLE_MEMORY_EXTRACTION !== 'false' &&
 				emotionAnalysis.shouldStoreMemory
 			) {
@@ -816,14 +813,7 @@ export const POST: RequestHandler = async (event) => {
 						role: h.role as 'system' | 'user' | 'assistant',
 						content: h.content
 					}));
-					const extracted = await extractMemories(message, context);
-
-					for (const ext of extracted) {
-						const savedId = await saveMemory(user.id, ext, conversation.id, userMessageRecord.id);
-						if (savedId) {
-							savedMemory = true;
-						}
-					}
+					pendingMemories = await extractMemories(message, context);
 				} catch (err) {
 					console.error('Error in memory extraction background task:', err);
 				}
@@ -839,7 +829,8 @@ export const POST: RequestHandler = async (event) => {
 					primaryEmotion: emotionAnalysis.primaryEmotion,
 					moodScore: emotionAnalysis.moodScore
 				},
-				savedMemory
+				savedMemory: false,
+				pendingMemories
 			});
 		}
 	} catch (error: any) {

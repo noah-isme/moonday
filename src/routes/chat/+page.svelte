@@ -13,6 +13,11 @@
 	let scrollContainer = $state<HTMLDivElement | null>(null);
 	let drawerOpen = $state(false);
 	let dailyPromptDismissed = $state(false);
+	let dailyContinuity = $state<{
+		source: 'mood' | 'goal' | 'conversation' | 'check_in';
+		prompt: string;
+	} | null>(null);
+	let doNotRememberNextMessage = $state(false);
 	let renameId = $state<string | null>(null);
 	let renameValue = $state('');
 
@@ -27,15 +32,13 @@
 			!chatStore.isStreaming &&
 			!messages.some((message) => message.role === 'user')
 	);
-	let hasMessagesFromToday = $derived(
-		messages.some(
-			(message) => new Date(message.createdAt).toDateString() === new Date().toDateString()
-		)
-	);
 	let showDailyContinuity = $derived(
 		!dailyPromptDismissed &&
-			!hasMessagesFromToday &&
-			messages.some((message) => message.role === 'user')
+			settingsStore.proactiveCheckInsEnabled &&
+			dailyContinuity !== null &&
+			(settingsStore.proactiveCheckInFrequency !== 'weekdays' ||
+				![0, 6].includes(new Date().getDay())) &&
+			isPreferredContinuityTime()
 	);
 
 	const starterPrompts = [
@@ -44,6 +47,13 @@
 		'Help me reflect on today.',
 		'I just want you to listen.'
 	];
+
+	function isPreferredContinuityTime() {
+		const hour = new Date().getHours();
+		if (settingsStore.proactiveCheckInTime === 'morning') return hour < 12;
+		if (settingsStore.proactiveCheckInTime === 'afternoon') return hour >= 12 && hour < 17;
+		return hour >= 17;
+	}
 
 	function focus(node: HTMLInputElement) {
 		node.focus();
@@ -83,6 +93,16 @@
 
 	onMount(() => {
 		scrollToBottom('auto');
+		if (settingsStore.proactiveCheckInsEnabled && isPreferredContinuityTime()) {
+			void fetch('/api/daily-continuity')
+				.then((response) => (response.ok ? response.json() : null))
+				.then((data) => {
+					dailyContinuity = data?.continuity || null;
+				})
+				.catch(() => {
+					dailyContinuity = null;
+				});
+		}
 	});
 
 	onDestroy(() => {
@@ -92,7 +112,16 @@
 
 	async function handleSend(text: string) {
 		voiceStore.stopSpeaking(); // Stop speaking user's current speech if they type/send new message
-		await chatStore.sendMessage(text);
+		const doNotRemember = doNotRememberNextMessage;
+		doNotRememberNextMessage = false;
+		await chatStore.sendMessage(text, { doNotRemember });
+	}
+
+	async function savePendingMemory(index: number) {
+		const memory = chatStore.pendingMemories[index];
+		if (!memory) return;
+		const saved = await memoryStore.saveSuggestion(memory);
+		if (saved) chatStore.dismissPendingMemory(index);
 	}
 
 	function switchProvider() {
@@ -414,6 +443,41 @@
 			</div>
 		{/if}
 
+		{#if chatStore.pendingMemories.length > 0}
+			<div
+				class="mb-3 rounded-xl border border-violet-glow/25 bg-violet-glow/5 p-3 text-xs text-slate-gray"
+			>
+				<p class="font-semibold text-pale-silver">
+					MOONDAY found context that may be useful later.
+				</p>
+				<p class="mt-1">Nothing is remembered unless you choose to save it.</p>
+				<div class="mt-3 space-y-2">
+					{#each chatStore.pendingMemories as memory, index (`${memory.title}-${index}`)}
+						<div
+							class="flex items-start justify-between gap-3 rounded-lg border border-slate-gray/10 bg-deep-navy/30 px-3 py-2"
+						>
+							<div class="min-w-0">
+								<p class="font-semibold text-pale-silver">{memory.title}</p>
+								<p class="mt-0.5 line-clamp-2">{memory.content}</p>
+							</div>
+							<div class="flex shrink-0 gap-2">
+								<button
+									type="button"
+									onclick={() => savePendingMemory(index)}
+									class="font-semibold text-violet-glow hover:text-soft-white">Save</button
+								>
+								<button
+									type="button"
+									onclick={() => chatStore.dismissPendingMemory(index)}
+									class="hover:text-pale-silver">Not now</button
+								>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<!-- Scrollable Messages Container -->
 		<div bind:this={scrollContainer} class="flex-1 overflow-y-auto px-1 scroll-smooth">
 			{#if showDailyContinuity}
@@ -422,12 +486,13 @@
 				>
 					<p class="text-xs font-semibold text-pale-silver">A new day, a gentle choice</p>
 					<p class="mt-1 text-xs text-slate-gray">
-						Would you like to continue yesterday’s thread, reflect, or begin fresh?
+						{dailyContinuity?.prompt}
 					</p>
 					<div class="mt-3 flex flex-wrap justify-center gap-2 text-xs">
 						<button
 							type="button"
-							onclick={() => handleSend('Let’s continue where we left off yesterday.')}
+							onclick={() =>
+								handleSend(dailyContinuity?.prompt || 'Let’s continue where we left off.')}
 							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-violet-glow/50"
 							>Continue</button
 						>
@@ -525,7 +590,12 @@
 
 		<!-- Chat Input Area -->
 		<div class="pt-4 border-t border-slate-gray/10 mt-2">
-			<ChatInput onSend={handleSend} isThinking={isThinkingOrStreaming} />
+			<ChatInput
+				onSend={handleSend}
+				isThinking={isThinkingOrStreaming}
+				doNotRemember={doNotRememberNextMessage}
+				onToggleDoNotRemember={() => (doNotRememberNextMessage = !doNotRememberNextMessage)}
+			/>
 		</div>
 	</div>
 
@@ -590,7 +660,7 @@
 							<div
 								class="p-3 bg-deep-navy/35 border border-dashed border-slate-gray/10 rounded-xl text-center text-[11px] text-slate-gray py-6"
 							>
-								No memories saved yet. MOONDAY automatically extracts memories from chats.
+								No memories saved yet. MOONDAY will suggest useful context for your review.
 							</div>
 						{/each}
 					</div>
@@ -614,25 +684,32 @@
 						</div>
 					</div>
 
-					<!-- Memory switch toggler -->
+					<!-- Per-conversation memory switch -->
 					<div
 						class="flex items-center justify-between p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl"
 					>
 						<div class="flex flex-col">
-							<span class="text-xs font-semibold text-pale-silver">Memory Extraction</span>
-							<span class="text-[9px] text-slate-gray">Enable AI to save facts</span>
+							<span class="text-xs font-semibold text-pale-silver">Remember in this chat</span>
+							<span class="text-[9px] text-slate-gray">Suggest memories for your review</span>
 						</div>
 						<button
-							onclick={() => settingsStore.toggleMemoryExtraction()}
-							aria-label="Toggle memory extraction"
-							aria-pressed={settingsStore.memoryExtractionEnabled}
-							class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer {settingsStore.memoryExtractionEnabled
+							onclick={() =>
+								activeConv &&
+								chatStore.setConversationMemoryExtraction(
+									activeConv.id,
+									activeConv.memoryExtractionEnabled === false
+								)}
+							aria-label="Toggle memories for this conversation"
+							aria-pressed={activeConv?.memoryExtractionEnabled !== false}
+							disabled={!activeConv}
+							class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer disabled:cursor-not-allowed {activeConv?.memoryExtractionEnabled !==
+							false
 								? 'bg-violet-glow'
 								: 'bg-slate-gray/30'}"
 						>
 							<div
 								class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
-								class:translate-x-4={settingsStore.memoryExtractionEnabled}
+								class:translate-x-4={activeConv?.memoryExtractionEnabled !== false}
 							></div>
 						</button>
 					</div>

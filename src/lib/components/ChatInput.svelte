@@ -3,9 +3,16 @@
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import { chatStore } from '$lib/stores/chat.svelte';
 
-	let { onSend, isThinking = false } = $props<{
+	let {
+		onSend,
+		isThinking = false,
+		doNotRemember = false,
+		onToggleDoNotRemember
+	} = $props<{
 		onSend: (text: string) => void;
 		isThinking?: boolean;
+		doNotRemember?: boolean;
+		onToggleDoNotRemember?: () => void;
 	}>();
 
 	let textValue = $state('');
@@ -58,6 +65,37 @@
 		rows="1"
 		class="flex-1 max-h-32 min-h-[40px] py-2.5 px-3 bg-transparent text-soft-white text-sm outline-none resize-none placeholder-slate-gray disabled:opacity-50 overflow-y-auto"
 	></textarea>
+
+	<!-- Web Search Toggle Button -->
+	<button
+		type="button"
+		onclick={onToggleDoNotRemember}
+		class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 relative group cursor-pointer border {doNotRemember
+			? 'bg-cyan-glow/15 border-cyan-glow/50 text-cyan-glow'
+			: 'bg-transparent border-slate-gray/20 text-slate-gray hover:text-pale-silver hover:border-slate-gray/40'}"
+		title={doNotRemember
+			? 'This message will not be considered for memory'
+			: 'Do not remember this message'}
+		aria-label={doNotRemember
+			? 'Allow memory suggestions for this message'
+			: 'Do not remember this message'}
+		aria-pressed={doNotRemember}
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			stroke-width="2"
+			stroke="currentColor"
+			class="w-4 h-4"
+		>
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				d="M12 15.75a3.75 3.75 0 0 0 3.75-3.75V9a3.75 3.75 0 1 0-7.5 0v3A3.75 3.75 0 0 0 12 15.75Zm0 0v3m-3 0h6"
+			/>
+		</svg>
+	</button>
 
 	<!-- Web Search Toggle Button -->
 	<button

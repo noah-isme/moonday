@@ -18,36 +18,42 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P0. Complete server-owned conversation lifecycle
 
+**Status: Complete**
+
 **Outcome:** every chat has one durable source of truth and survives refreshes consistently.
 
-- Add server API support for conversation rename and deletion.
-- Persist title changes and deletions; remove client-only conversation mutations.
-- Maintain a server-generated welcome conversation and consistent character-specific greeting.
-- Add reliable latest-conversation loading and empty-state recovery.
-- Create conversation summaries after meaningful exchanges to preserve continuity without sending the entire history to the model.
+- [x] Add server API support for conversation rename and deletion.
+- [x] Persist title changes and deletions; remove client-only conversation mutations.
+- [x] Maintain a server-generated welcome conversation and consistent character-specific greeting.
+- [x] Add reliable latest-conversation loading and empty-state recovery.
+- [x] Create conversation summaries after meaningful exchanges to preserve continuity without sending the entire history to the model.
 
 **Done when:** creating, renaming, deleting, reopening, and continuing a chat produce the same result across reloads and devices using the same database.
 
 ### P1. Improve response quality and context selection
 
+**Status: Complete**
+
 **Outcome:** MOONDAY feels attentive rather than scripted or repetitive.
 
-- Rank and limit recalled memories by relevance, importance, recency, and privacy sensitivity.
-- Use conversation summaries plus a focused recent-message window.
-- Reduce repetitive empathy, forced questions, and unnecessary restatement.
-- Respect the selected response language reliably, including automatic English/Indonesian detection.
-- Add graceful provider fallback, retry messaging, and a clear unavailable-provider state.
+- [x] Rank and limit recalled memories by relevance, importance, recency, and privacy sensitivity.
+- [x] Use conversation summaries plus a focused recent-message window.
+- [x] Reduce repetitive empathy, forced questions, and unnecessary restatement.
+- [x] Respect the selected response language reliably, including automatic English/Indonesian detection.
+- [x] Add graceful provider fallback, retry messaging, and a clear unavailable-provider state.
 
 **Done when:** responses naturally reference only useful context, match the user’s language, and recover cleanly from provider failures.
 
 ### P2. Make memory transparent and controllable
 
+**Status: Complete**
+
 **Outcome:** remembered context feels helpful, never mysterious.
 
-- Show which memory snippets informed a reply without exposing hidden internal prompt content.
-- Add per-conversation memory controls: disable extraction, do not save this, and review pending memories.
-- Support edit, delete, and clear-all memory actions with confirmation.
-- Add conservative rules for sensitive content and prevent secrets, credentials, precise locations, and unnecessary third-party details from being saved.
+- [x] Show which memory snippets informed a reply without exposing hidden internal prompt content.
+- [x] Add per-conversation memory controls: disable extraction, do not save this, and review pending memories.
+- [x] Support edit, delete, and clear-all memory actions with confirmation.
+- [x] Add conservative rules for sensitive content and prevent secrets, credentials, precise locations, and unnecessary third-party details from being saved.
 
 **Done when:** the user can see, correct, remove, and prevent memories with minimal effort.
 
@@ -55,45 +61,53 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P3. Proactive daily continuity
 
+**Status: Complete**
+
 **Outcome:** MOONDAY can gently reconnect daily events without becoming noisy.
 
-- Offer an optional daily check-in on the home/chat screen.
-- Use explicit user goals, recent mood, and unfinished topics for a single relevant follow-up.
-- Let the user configure timing, frequency, and disable proactive prompts entirely.
-- Add a “continue,” “reflect,” and “start fresh” choice at the beginning of a new day.
+- [x] Offer an optional daily check-in on the home/chat screen.
+- [x] Use explicit user goals, recent mood, and unfinished topics for a single relevant follow-up.
+- [x] Let the user configure timing, frequency, and disable proactive prompts entirely.
+- [x] Add a “continue,” “reflect,” and “start fresh” choice at the beginning of a new day.
 
 **Done when:** a follow-up feels timely and useful, and the user always controls whether it happens.
 
 ### P4. Expand personality and interaction preferences
 
+**Status: In progress**
+
 **Outcome:** MOONDAY can feel like the user’s preferred kind of copilot.
 
-- Refine warmth, humor, directness, curiosity, response length, and formality controls.
-- Provide safe presets such as **Calm Operator**, **Friendly Copilot**, and **Dryly Witty Observer**.
-- Add a live sample response before a preference is saved.
-- Keep all character profiles within the same safety, privacy, and non-diagnostic boundaries.
+- [x] Refine warmth, humor, directness, response length, and formality controls. Curiosity remains to be added.
+- [ ] Provide safe presets such as **Calm Operator**, **Friendly Copilot**, and **Dryly Witty Observer**.
+- [x] Add a live sample response before a preference is saved.
+- [x] Keep all character profiles within the same safety, privacy, and non-diagnostic boundaries.
 
 **Done when:** changing a preference produces a consistent, recognizable shift in style without becoming cruel, fake-intimate, or unstable.
 
 ### P5. Conversation steering and useful artifacts
 
+**Status: In progress**
+
 **Outcome:** the user can shape a reply rather than starting over.
 
-- Offer response variants: shorter, warmer, funnier, more direct, and more practical.
-- Allow message editing, regenerate, and branching a conversation from an earlier message.
-- Support pinning a useful answer and saving a reflection as a memory only with clear user intent.
-- Add one-click conversation summaries and optional action-item extraction.
+- [ ] Offer response variants: shorter, warmer, funnier, more direct, and more practical. Shorter, more practical, and go deeper are available.
+- [ ] Allow message editing, regenerate, and branching a conversation from an earlier message. Editing and regenerate are available; branching remains.
+- [ ] Support pinning a useful answer and saving a reflection as a memory only with clear user intent. Saving a reflection is available; pinning remains.
+- [ ] Add one-click conversation summaries and optional action-item extraction.
 
 **Done when:** users can quickly turn an almost-right response into a useful one.
 
 ### P6. Voice interaction polish
 
+**Status: In progress**
+
 **Outcome:** speaking with MOONDAY is an optional, smooth interaction.
 
-- Improve push-to-talk, listening states, transcript review, and cancel/stop controls.
-- Let users interrupt speech output and choose response voice settings.
-- Prefer concise speech responses and respect the language of the conversation.
-- Maintain full keyboard/chat usability when browser voice APIs are unavailable.
+- [ ] Improve push-to-talk, listening states, transcript review, and cancel/stop controls. Basic voice input and listening states are available.
+- [x] Let users interrupt speech output and choose response voice settings.
+- [ ] Prefer concise speech responses and respect the language of the conversation.
+- [x] Maintain full keyboard/chat usability when browser voice APIs are unavailable.
 
 **Done when:** voice feels additive, can be stopped instantly, and never blocks text chat.
 

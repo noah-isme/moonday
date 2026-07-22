@@ -18,6 +18,11 @@ export interface Memory {
 	createdAt: string;
 }
 
+export interface MemorySuggestion extends Omit<Memory, 'id' | 'createdAt'> {
+	sourceConversationId?: string;
+	sourceMessageId?: string;
+}
+
 const DEFAULT_MEMORIES: Memory[] = [
 	{
 		id: 'm1',
@@ -103,6 +108,23 @@ export class MemoryStore {
 		this.syncWithBackend(newMemory, 'POST');
 	}
 
+	async saveSuggestion(suggestion: MemorySuggestion) {
+		try {
+			const response = await fetch('/api/memories', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(suggestion)
+			});
+			if (!response.ok) return false;
+			const created = (await response.json()) as Memory;
+			this.list = [created, ...this.list.filter((memory) => memory.id !== created.id)];
+			this.saveToLocalStorage();
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
 	updateMemory(id: string, updatedFields: Partial<Omit<Memory, 'id' | 'createdAt'>>) {
 		this.list = this.list.map((m) => {
 			if (m.id === id) {
@@ -119,6 +141,22 @@ export class MemoryStore {
 		this.list = this.list.filter((m) => m.id !== id);
 		this.saveToLocalStorage();
 		this.syncWithBackend({ id }, 'DELETE');
+	}
+
+	async clearAllMemories() {
+		try {
+			const response = await fetch('/api/memories', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ clearMemories: true })
+			});
+			if (!response.ok) return false;
+			this.list = [];
+			this.saveToLocalStorage();
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	private async syncWithBackend(data: any, method: 'POST' | 'PUT' | 'DELETE') {

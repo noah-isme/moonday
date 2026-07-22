@@ -6,9 +6,19 @@ import { db } from '$lib/server/db';
 import { conversations, users } from '$lib/server/db/schema';
 
 const conversationParamsSchema = z.object({ id: z.string().uuid() });
-const updateConversationSchema = z.object({
-	title: z.string().trim().min(1, 'Title cannot be empty').max(120, 'Title is too long')
-});
+const updateConversationSchema = z
+	.object({
+		title: z
+			.string()
+			.trim()
+			.min(1, 'Title cannot be empty')
+			.max(120, 'Title is too long')
+			.optional(),
+		memoryExtractionEnabled: z.boolean().optional()
+	})
+	.refine((value) => value.title !== undefined || value.memoryExtractionEnabled !== undefined, {
+		message: 'Provide at least one conversation update.'
+	});
 
 async function getLocalUser() {
 	const [user] = await db.select().from(users).limit(1);
@@ -40,7 +50,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 
 		const [conversation] = await db
 			.update(conversations)
-			.set({ title: input.title, updatedAt: new Date() })
+			.set({ ...input, updatedAt: new Date() })
 			.where(eq(conversations.id, id))
 			.returning();
 		return json({ conversation });
@@ -50,7 +60,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 				{
 					error: {
 						code: 'VALIDATION_ERROR',
-						message: 'Provide a title between 1 and 120 characters.'
+						message: 'Provide a valid conversation update.'
 					}
 				},
 				{ status: 400 }

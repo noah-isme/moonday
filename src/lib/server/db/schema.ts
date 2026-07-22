@@ -70,6 +70,7 @@ export const conversations = pgTable('conversations', {
 		onDelete: 'set null'
 	}),
 	summary: text('summary'),
+	memoryExtractionEnabled: boolean('memory_extraction_enabled').default(true).notNull(),
 	lastEmotionLabel: text('last_emotion_label'),
 	lastMoodScore: integer('last_mood_score'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),

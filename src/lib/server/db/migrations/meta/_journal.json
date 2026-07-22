@@ -43,6 +43,13 @@
 			"when": 1783620241077,
 			"tag": "0005_clean_princess_powerful",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1783620241078,
+			"tag": "0006_conversation_memory_controls",
+			"breakpoints": true
 		}
 	]
 }

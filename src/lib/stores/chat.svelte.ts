@@ -22,6 +22,7 @@ export interface Conversation {
 	/** UI-facing tone; the persisted character ID is a database UUID. */
 	characterTone?: string;
 	summary?: string;
+	memoryExtractionEnabled?: boolean;
 	lastEmotionLabel?: string;
 	lastMoodScore?: number;
 	createdAt: string;
@@ -34,6 +35,24 @@ export interface UsedMemoryContext {
 	type: string;
 }
 
+export interface PendingMemory {
+	type:
+		| 'core_memory'
+		| 'preference'
+		| 'emotional_pattern'
+		| 'project_memory'
+		| 'relationship_context'
+		| 'personal_goal'
+		| 'recurring_problem'
+		| 'reflection';
+	title: string;
+	content: string;
+	importance: number;
+	confidence: number;
+	sourceConversationId: string;
+	sourceMessageId: string;
+}
+
 export class ChatStore {
 	conversations = $state<Conversation[]>([]);
 	activeId = $state<string | null>(null);
@@ -44,6 +63,7 @@ export class ChatStore {
 	isWebSearchEnabled = $state<boolean>(false);
 	error = $state<string | null>(null);
 	usedMemories = $state<UsedMemoryContext[]>([]);
+	pendingMemories = $state<PendingMemory[]>([]);
 	lastSentMessage = $state<string | null>(null);
 	isLoading = $state<boolean>(false);
 	private isCreatingConversation = false;
@@ -54,6 +74,30 @@ export class ChatStore {
 
 	dismissUsedMemory(id: string) {
 		this.usedMemories = this.usedMemories.filter((memory) => memory.id !== id);
+	}
+
+	dismissPendingMemory(index: number) {
+		this.pendingMemories = this.pendingMemories.filter((_, itemIndex) => itemIndex !== index);
+	}
+
+	async setConversationMemoryExtraction(id: string, enabled: boolean) {
+		this.error = null;
+		try {
+			const response = await fetch(`/api/conversations/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ memoryExtractionEnabled: enabled })
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			const { conversation } = (await response.json()) as { conversation: Conversation };
+			this.conversations = this.conversations.map((item) =>
+				item.id === id ? { ...item, ...conversation } : item
+			);
+			return true;
+		} catch (error) {
+			this.error = error instanceof Error ? error.message : 'Unable to update memory controls.';
+			return false;
+		}
 	}
 
 	async retryLastMessage() {
@@ -235,7 +279,7 @@ export class ChatStore {
 		}
 	}
 
-	async sendMessage(content: string) {
+	async sendMessage(content: string, options: { doNotRemember?: boolean } = {}) {
 		if (!content.trim()) return;
 		if (!this.activeId) await this.createNewConversation();
 		if (!this.activeId) return;
@@ -275,7 +319,8 @@ export class ChatStore {
 					language: settingsStore.responseLanguage,
 					stream: true,
 					enableWebSearch: this.isWebSearchEnabled,
-					enableMemoryExtraction: settingsStore.memoryExtractionEnabled
+					enableMemoryExtraction: settingsStore.memoryExtractionEnabled,
+					doNotRemember: options.doNotRemember
 				})
 			});
 
@@ -367,6 +412,17 @@ export class ChatStore {
 									const finalMoodScore = msg?.moodScore;
 									if (data.assistantMessageId) {
 										updateMessage({ id: data.assistantMessageId, persisted: true });
+									}
+									if (Array.isArray(data.pendingMemories)) {
+										this.pendingMemories = data.pendingMemories.map(
+											(
+												memory: Omit<PendingMemory, 'sourceConversationId' | 'sourceMessageId'>
+											) => ({
+												...memory,
+												sourceConversationId: data.conversationId || this.activeId || '',
+												sourceMessageId: data.userMessageId || ''
+											})
+										);
 									}
 
 									const conv = this.conversations.find((c) => c.id === this.activeId);

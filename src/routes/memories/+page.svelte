@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { memoryStore, type Memory } from '$lib/stores/memory.svelte';
 
 	let searchQuery = $state('');
@@ -18,6 +19,10 @@
 		content: '',
 		type: 'preference',
 		importance: 5
+	});
+
+	onMount(() => {
+		void memoryStore.loadMemories();
 	});
 
 	// Get unique memory types present
@@ -113,15 +118,37 @@
 		if (undoTimer) clearTimeout(undoTimer);
 		undoTimer = null;
 	}
+
+	async function clearAllMemories() {
+		if (
+			!confirm(
+				'Forget every saved memory? This cannot be undone and will not delete your conversations.'
+			)
+		)
+			return;
+		const cleared = await memoryStore.clearAllMemories();
+		if (!cleared) alert('Unable to clear saved memories. Please try again.');
+	}
 </script>
 
 <div class="space-y-8 select-none">
 	<!-- Page Header -->
-	<div class="space-y-2">
-		<h1 class="text-2xl font-extrabold text-soft-white tracking-tight">Saved Memories</h1>
-		<p class="text-xs text-slate-gray">
-			View, edit, and delete details MOONDAY has remembered about you from reflections.
-		</p>
+	<div class="flex flex-wrap items-start justify-between gap-3">
+		<div class="space-y-2">
+			<h1 class="text-2xl font-extrabold text-soft-white tracking-tight">Saved Memories</h1>
+			<p class="text-xs text-slate-gray">
+				View, edit, and delete details MOONDAY has remembered about you from reflections.
+			</p>
+		</div>
+		{#if memoryStore.list.length > 0}
+			<button
+				type="button"
+				onclick={clearAllMemories}
+				class="rounded-xl border border-soft-red/25 px-3 py-2 text-xs font-semibold text-soft-red hover:bg-soft-red/10"
+			>
+				Clear all memories
+			</button>
+		{/if}
 	</div>
 
 	<!-- Filter and Search Toolbar -->

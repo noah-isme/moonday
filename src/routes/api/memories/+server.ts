@@ -72,7 +72,8 @@ const putMemorySchema = z.object({
 
 const deleteMemorySchema = z.object({
 	id: z.string().uuid('Invalid memory ID').optional(),
-	clearAll: z.boolean().optional()
+	clearAll: z.boolean().optional(),
+	clearMemories: z.boolean().optional()
 });
 
 export const GET: RequestHandler = async () => {
@@ -463,6 +464,11 @@ export const DELETE: RequestHandler = async ({ request }) => {
 			const { clearAllLocalData } = await import('$lib/server/memory/save');
 			await clearAllLocalData(user.id);
 			return json({ success: true, message: 'All local data cleared successfully.' });
+		}
+
+		if (validated.clearMemories) {
+			await db.delete(memories).where(eq(memories.userId, user.id));
+			return json({ success: true, message: 'All saved memories were cleared.' });
 		}
 
 		if (!validated.id) {
