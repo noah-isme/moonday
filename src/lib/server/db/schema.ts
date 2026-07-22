@@ -7,7 +7,8 @@ import {
 	timestamp,
 	real,
 	jsonb,
-	customType
+	customType,
+	uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { vector } from 'drizzle-orm/pg-core';
 import { encrypt, decrypt } from './encryption';
@@ -148,6 +149,45 @@ export const dailyReflections = pgTable('daily_reflections', {
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
+
+export const weeklyReflections = pgTable(
+	'weekly_reflections',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: uuid('user_id')
+			.references(() => users.id, { onDelete: 'cascade' })
+			.notNull(),
+		weekStart: text('week_start').notNull(),
+		summary: text('summary').notNull(),
+		whatHelped: text('what_helped').notNull(),
+		whatFeltHeavy: text('what_felt_heavy').notNull(),
+		suggestedFocus: text('suggested_focus').notNull(),
+		status: text('status').default('active').notNull(),
+		correction: text('correction'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow().notNull()
+	},
+	(table) => [uniqueIndex('weekly_reflections_user_week_idx').on(table.userId, table.weekStart)]
+);
+
+export const responseFeedback = pgTable(
+	'response_feedback',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: uuid('user_id')
+			.references(() => users.id, { onDelete: 'cascade' })
+			.notNull(),
+		messageId: uuid('message_id')
+			.references(() => messages.id, { onDelete: 'cascade' })
+			.notNull(),
+		feedbackType: text('feedback_type').notNull(),
+		provider: text('provider'),
+		model: text('model'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at').defaultNow().notNull()
+	},
+	(table) => [uniqueIndex('response_feedback_user_message_idx').on(table.userId, table.messageId)]
+);
 
 export const aiProviderLogs = pgTable('ai_provider_logs', {
 	id: uuid('id').defaultRandom().primaryKey(),

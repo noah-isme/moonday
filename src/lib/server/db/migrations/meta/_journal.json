@@ -50,6 +50,20 @@
 			"when": 1783620241078,
 			"tag": "0006_conversation_memory_controls",
 			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1783620241079,
+			"tag": "0007_weekly_reflections",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1783620241080,
+			"tag": "0008_response_feedback",
+			"breakpoints": true
 		}
 	]
 }

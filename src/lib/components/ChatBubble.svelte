@@ -6,6 +6,7 @@
 	import { MOODS } from '$lib/stores/mood.svelte';
 	import { fade } from 'svelte/transition';
 	import { marked } from 'marked';
+	import { RESPONSE_FEEDBACK_LABELS, type ResponseFeedbackType } from '$lib/types/feedback';
 
 	let {
 		message,
@@ -19,6 +20,17 @@
 
 	let isEditing = $state(false);
 	let editedContent = $state('');
+	let feedbackOpen = $state(false);
+	let feedbackSaved = $state<string | null>(null);
+
+	async function submitFeedback(type: ResponseFeedbackType) {
+		if (!message.persisted) return;
+		const saved = await chatStore.recordResponseFeedback(message.id, type);
+		if (saved) {
+			feedbackSaved = RESPONSE_FEEDBACK_LABELS[type];
+			feedbackOpen = false;
+		}
+	}
 
 	function startEditing() {
 		isEditing = true;
@@ -245,7 +257,20 @@
 						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
 						>Branch here</button
 					>
+					{#if feedbackSaved}
+						<span class="self-center text-[10px] text-cyan-glow">Thanks — {feedbackSaved}, kept private.</span>
+					{:else if message.persisted}
+						<button type="button" onclick={() => submitFeedback('helpful')} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-cyan-glow/40 hover:text-cyan-glow">Helpful</button>
+						<button type="button" onclick={() => (feedbackOpen = !feedbackOpen)} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver">Needs work</button>
+					{/if}
 				</div>
+				{#if feedbackOpen && message.persisted}
+					<div class="mt-2 flex flex-wrap gap-1.5 px-1">
+						{#each (['not_helpful', 'too_long', 'too_generic', 'too_much_humor', 'wrong_language'] as ResponseFeedbackType[]) as type}
+							<button type="button" onclick={() => submitFeedback(type)} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-soft-red/40 hover:text-pale-silver">{RESPONSE_FEEDBACK_LABELS[type]}</button>
+						{/each}
+					</div>
+				{/if}
 			{/if}
 
 			{#if message.role === 'user' && message.persisted === true && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}

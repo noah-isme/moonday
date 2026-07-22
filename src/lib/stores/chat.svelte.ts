@@ -4,6 +4,7 @@ import { settingsStore } from './settings.svelte';
 import { uiStore } from '$lib/stores/ui.svelte';
 import type { CoViewerMode } from '$lib/types/co-viewer';
 import type { ImageAttachment, UrlContext } from '$lib/types/multimodal';
+import type { ResponseFeedbackType } from '$lib/types/feedback';
 
 export interface ChatMessage {
 	id: string;
@@ -82,6 +83,21 @@ export class ChatStore {
 
 	dismissUsedMemory(id: string) {
 		this.usedMemories = this.usedMemories.filter((memory) => memory.id !== id);
+	}
+
+	async recordResponseFeedback(messageId: string, feedbackType: ResponseFeedbackType) {
+		try {
+			const response = await fetch('/api/feedback', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ messageId, feedbackType })
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			return true;
+		} catch (error) {
+			this.error = error instanceof Error ? error.message : 'Unable to save feedback.';
+			return false;
+		}
 	}
 
 	dismissPendingMemory(index: number) {

@@ -146,22 +146,26 @@ See [Thoughtful Co-Viewer](thoughtful-co-viewer.md) for detailed product boundar
 
 ### P9. Emotional timeline and weekly reflection
 
+**Status: Complete**
+
 **Outcome:** patterns become understandable without turning into clinical analysis.
 
-- Show mood check-ins, recurring topics, notable wins, and stressors over time.
-- Generate a weekly reflection with tentative language and practical next steps.
-- Link insights to user-approved memories and journal entries, not hidden inferences.
-- Let users correct or dismiss an insight.
+- [x] Show mood check-ins, recurring topics, notable wins, and stressors over time.
+- [x] Generate a weekly reflection with tentative language and practical next steps.
+- [x] Link insights to user-approved memories and journal entries, not hidden inferences.
+- [x] Let users correct or dismiss an insight.
 
 **Done when:** the timeline helps the user notice patterns while respecting uncertainty and privacy.
 
 ### P10. Quality feedback loop
 
+**Status: Complete**
+
 **Outcome:** MOONDAY becomes more useful through explicit, privacy-aware signals.
 
-- Add lightweight private feedback: helpful, not helpful, too long, too generic, too much humor, and wrong language.
-- Use feedback to evaluate prompts, character settings, routing, and memory retrieval offline or in aggregate.
-- Never train on private conversations or share them externally without explicit opt-in.
+- [x] Add lightweight private feedback: helpful, not helpful, too long, too generic, too much humor, and wrong language.
+- [x] Use feedback to evaluate prompts, character settings, routing, and memory retrieval offline or in aggregate.
+- [x] Never train on private conversations or share them externally without explicit opt-in.
 
 **Done when:** recurring quality issues can be measured and improved without collecting unnecessary personal content.
 

@@ -3,48 +3,67 @@
 	import { onMount } from 'svelte';
 
 	let trendsData = $state<any[]>([]);
+	let reflections = $state<any[]>([]);
+	let weekly = $state<any>(null);
+	let weeklyDraft = $state<any>(null);
+	let weekStart = $state('');
+	let weeklyLoading = $state(false);
+	let correction = $state('');
+	let showCorrection = $state(false);
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/api/journal/trends');
-			if (res.ok) {
-				trendsData = await res.json();
+			const [trendsResponse, reflectionsResponse, weeklyResponse] = await Promise.all([
+				fetch('/api/journal/trends'),
+				fetch('/api/reflections'),
+				fetch('/api/journal/weekly')
+			]);
+			if (trendsResponse.ok) trendsData = await trendsResponse.json();
+			if (reflectionsResponse.ok) reflections = await reflectionsResponse.json();
+			if (weeklyResponse.ok) {
+				const data = await weeklyResponse.json();
+				weekly = data.reflection;
+				weeklyDraft = data.draft;
+				weekStart = data.weekStart;
 			}
 		} catch (e) {
 			console.error('Failed to fetch journal trends:', e);
 		}
 	});
 
-	// Mock reflections if not populated by server API
-	const DEFAULT_REFLECTIONS = [
-		{
-			id: 'ref-1',
-			date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, {
-				weekday: 'long',
-				month: 'short',
-				day: 'numeric'
-			}),
-			moodSummary: 'A mixture of anxiety and motivation',
-			emotionalSummary:
-				'Felt highly driven in the evening to code, but carried minor worries about upcoming reviews during the afternoon.',
-			importantEvents: 'Progressed significantly on the companion prototype.',
-			suggestedFocus:
-				'Focus on breathing exercises when anxiety spikes, and break complex tasks into subtasks.'
-		},
-		{
-			id: 'ref-2',
-			date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, {
-				weekday: 'long',
-				month: 'short',
-				day: 'numeric'
-			}),
-			moodSummary: 'Calm and stable energy',
-			emotionalSummary:
-				'Woke up feeling deeply rested. Kept a clean pace throughout the afternoon with a calm mood.',
-			importantEvents: 'Read three chapters of the book and walked in the park.',
-			suggestedFocus: 'Keep up the current offline wind-down routines.'
+	async function generateWeeklyReflection() {
+		weeklyLoading = true;
+		try {
+			const response = await fetch('/api/journal/weekly', { method: 'POST' });
+			if (!response.ok) throw new Error('Unable to create weekly reflection.');
+			weekly = (await response.json()).reflection;
+			showCorrection = false;
+			correction = '';
+		} catch (error) {
+			console.error(error);
+		} finally {
+			weeklyLoading = false;
 		}
-	];
+	}
+
+	async function giveWeeklyFeedback(action: 'dismiss' | 'correct') {
+		if (!weekly || (action === 'correct' && !correction.trim())) return;
+		const response = await fetch('/api/journal/weekly', {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ id: weekly.id, action, correction: correction.trim() || undefined })
+		});
+		if (response.ok) weekly = (await response.json()).reflection;
+	}
+
+
+	function formatDate(value: string) {
+		return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+			weekday: 'long',
+			month: 'short',
+			day: 'numeric'
+		});
+	}
 
 	// Prepare data for the SVG mood trend chart
 	let chartLogs = $derived.by(() => {
@@ -123,6 +142,37 @@
 		<p class="text-xs text-slate-gray">
 			Analyze your emotional patterns and read MOONDAY's structured daily focus points.
 		</p>
+	</div>
+
+	<div class="bg-soft-dark-blue border border-violet-glow/20 rounded-3xl p-5 md:p-6 shadow-xl">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-sm font-bold text-soft-white">This week, tentatively</h2>
+				<p class="mt-1 text-xs text-slate-gray">Built from your logged moods, daily reflections, and memories you approved. This is a reflection, not a diagnosis.</p>
+			</div>
+			<button type="button" onclick={generateWeeklyReflection} disabled={weeklyLoading} class="rounded-xl bg-violet-glow px-3 py-2 text-xs font-semibold text-deep-navy disabled:opacity-50">{weeklyLoading ? 'Generating…' : weekly ? 'Refresh reflection' : 'Generate weekly reflection'}</button>
+		</div>
+		{#if weekly && weekly.status !== 'dismissed'}
+			<div class="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
+				<div class="rounded-2xl bg-deep-navy/45 p-3 sm:col-span-2"><p class="font-semibold text-pale-silver">{weekly.summary}</p></div>
+				<div class="rounded-2xl border border-slate-gray/10 p-3"><p class="text-[10px] font-bold uppercase tracking-wide text-cyan-glow">What may have helped</p><p class="mt-1.5 text-pale-silver">{weekly.whatHelped}</p></div>
+				<div class="rounded-2xl border border-slate-gray/10 p-3"><p class="text-[10px] font-bold uppercase tracking-wide text-moon-yellow">What may have felt heavy</p><p class="mt-1.5 text-pale-silver">{weekly.whatFeltHeavy}</p></div>
+				<div class="rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-3 sm:col-span-2"><p class="text-[10px] font-bold uppercase tracking-wide text-violet-glow">Suggested focus</p><p class="mt-1.5 text-pale-silver">{weekly.suggestedFocus}</p></div>
+			</div>
+			{#if weekly.correction}<p class="mt-3 text-xs text-cyan-glow">Your correction: {weekly.correction}</p>{/if}
+			<div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+				<button type="button" onclick={() => (showCorrection = !showCorrection)} class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-slate-gray hover:text-pale-silver">Correct this</button>
+				<button type="button" onclick={() => giveWeeklyFeedback('dismiss')} class="rounded-lg px-2.5 py-1.5 text-slate-gray hover:text-soft-red">Dismiss insight</button>
+				<span class="ml-auto text-[11px] text-slate-gray">Week of {formatDate(weekStart)}</span>
+			</div>
+			{#if showCorrection}
+				<div class="mt-3 flex gap-2"><input bind:value={correction} maxlength="1000" placeholder="What should MOONDAY understand differently?" class="min-w-0 flex-1 rounded-xl border border-slate-gray/15 bg-deep-navy px-3 py-2 text-xs text-soft-white outline-none" /><button type="button" onclick={() => giveWeeklyFeedback('correct')} class="rounded-xl bg-cyan-glow px-3 py-2 text-xs font-semibold text-deep-navy">Save correction</button></div>
+			{/if}
+		{:else if weekly?.status === 'dismissed'}
+			<p class="mt-4 text-xs text-slate-gray">You dismissed this week’s reflection. You can generate a new one whenever it would be useful.</p>
+		{:else if weeklyDraft}
+			<p class="mt-4 text-xs text-slate-gray">{weeklyDraft.summary}</p>
+		{/if}
 	</div>
 
 	<!-- Mood Trend Visual Chart Section -->
@@ -275,13 +325,13 @@
 		</h2>
 
 		<div class="space-y-4">
-			{#each DEFAULT_REFLECTIONS as reflection}
+			{#each reflections as reflection}
 				<div
 					class="bg-soft-dark-blue/70 border border-slate-gray/10 rounded-3xl p-5 md:p-6 space-y-3 relative hover:border-slate-gray/25 transition-colors duration-300"
 				>
 					<!-- Date Badge -->
 					<div class="flex justify-between items-center">
-						<span class="text-xs font-bold text-violet-glow font-mono">{reflection.date}</span>
+						<span class="text-xs font-bold text-violet-glow font-mono">{formatDate(reflection.date)}</span>
 						<span
 							class="text-[9px] bg-violet-glow/10 text-violet-glow border border-violet-glow/15 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
 						>
@@ -327,6 +377,8 @@
 						</div>
 					</div>
 				</div>
+			{:else}
+				<div class="rounded-3xl border border-dashed border-slate-gray/15 p-6 text-center text-xs text-slate-gray">No daily reflections yet. Generate one after a mood check-in or a meaningful conversation.</div>
 			{/each}
 		</div>
 	</div>
