@@ -54,6 +54,53 @@
 	let humor = $state(2);
 	let responseLength = $state(2);
 	let questionFrequency = $state(2);
+	let curiosity = $state(3);
+	let selectedPreset = $state<string | null>(null);
+
+	const companionPresets = [
+		{
+			id: 'calm-operator',
+			name: 'Calm Operator',
+			description: 'Grounded, concise, steady under pressure.',
+			tone: 'Straightforward',
+			formality: 'Professional',
+			sarcasm: 0,
+			warmth: 3,
+			directness: 4,
+			humor: 1,
+			responseLength: 2,
+			questionFrequency: 1,
+			curiosity: 2
+		},
+		{
+			id: 'friendly-copilot',
+			name: 'Friendly Copilot',
+			description: 'Warm, practical, and collaborative.',
+			tone: 'Empathetic',
+			formality: 'Casual / Gen Z',
+			sarcasm: 1,
+			warmth: 5,
+			directness: 3,
+			humor: 3,
+			responseLength: 3,
+			questionFrequency: 3,
+			curiosity: 4
+		},
+		{
+			id: 'dryly-witty-observer',
+			name: 'Dryly Witty Observer',
+			description: 'Sharp observations with kind, restrained humor.',
+			tone: 'Analytical',
+			formality: 'To-the-point',
+			sarcasm: 3,
+			warmth: 3,
+			directness: 4,
+			humor: 4,
+			responseLength: 2,
+			questionFrequency: 2,
+			curiosity: 4
+		}
+	] as const;
 
 	// Synchronize when commStyle changes
 	$effect(() => {
@@ -77,6 +124,7 @@
 			responseLength = Number(style.responseLength);
 		if (Number.isFinite(Number(style.questionFrequency)))
 			questionFrequency = Number(style.questionFrequency);
+		if (Number.isFinite(Number(style.curiosity))) curiosity = Number(style.curiosity);
 	});
 
 	// Derived Sarcasm Level string descriptor for storing in JSON
@@ -104,7 +152,10 @@
 				? 'Pick one next step and do it for ten minutes.'
 				: 'We can make the next step smaller.';
 		const question = questionFrequency >= 4 ? ' What feels most important right now?' : '';
-		return `${opening} ${warmthLine} ${nextStep}${question}`.replace(/\s+/g, ' ').trim();
+		const curiosityLine = curiosity >= 4 ? ' There may be a useful detail worth noticing.' : '';
+		return `${opening} ${warmthLine} ${nextStep}${curiosityLine}${question}`
+			.replace(/\s+/g, ' ')
+			.trim();
 	});
 
 	function setPreference(id: string, value: number) {
@@ -113,6 +164,20 @@
 		else if (id === 'humor') humor = value;
 		else if (id === 'responseLength') responseLength = value;
 		else if (id === 'questionFrequency') questionFrequency = value;
+		else if (id === 'curiosity') curiosity = value;
+	}
+
+	function applyPreset(preset: (typeof companionPresets)[number]) {
+		selectedPreset = preset.id;
+		tone = preset.tone;
+		formality = preset.formality;
+		sarcasmLevelNum = preset.sarcasm;
+		warmth = preset.warmth;
+		directness = preset.directness;
+		humor = preset.humor;
+		responseLength = preset.responseLength;
+		questionFrequency = preset.questionFrequency;
+		curiosity = preset.curiosity;
 	}
 
 	function handleClearData() {
@@ -250,6 +315,22 @@
 						Communication Style
 					</h3>
 
+					<div class="grid gap-2 md:grid-cols-3">
+						{#each companionPresets as preset}
+							<button
+								type="button"
+								onclick={() => applyPreset(preset)}
+								class="rounded-xl border p-3 text-left transition-colors {selectedPreset ===
+								preset.id
+									? 'border-violet-glow/60 bg-violet-glow/10'
+									: 'border-slate-gray/10 bg-deep-navy/20 hover:border-violet-glow/30'}"
+							>
+								<span class="block text-xs font-semibold text-pale-silver">{preset.name}</span>
+								<span class="mt-1 block text-[10px] text-slate-gray">{preset.description}</span>
+							</button>
+						{/each}
+					</div>
+
 					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 						<!-- Tone Dropdown -->
 						<div class="flex flex-col gap-1.5">
@@ -308,7 +389,7 @@
 					</div>
 
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-1">
-						{#each [{ id: 'warmth', label: 'Warmth', value: warmth }, { id: 'directness', label: 'Directness', value: directness }, { id: 'humor', label: 'Humor', value: humor }, { id: 'responseLength', label: 'Response length', value: responseLength }, { id: 'questionFrequency', label: 'Questions', value: questionFrequency }] as control}
+						{#each [{ id: 'warmth', label: 'Warmth', value: warmth }, { id: 'directness', label: 'Directness', value: directness }, { id: 'humor', label: 'Humor', value: humor }, { id: 'responseLength', label: 'Response length', value: responseLength }, { id: 'questionFrequency', label: 'Questions', value: questionFrequency }, { id: 'curiosity', label: 'Curiosity', value: curiosity }] as control}
 							<div class="flex flex-col gap-1.5">
 								<div class="flex items-center justify-between text-xs">
 									<label for={control.id} class="font-semibold text-pale-silver"
@@ -352,7 +433,9 @@
 							directness,
 							humor,
 							responseLength,
-							questionFrequency
+							questionFrequency,
+							curiosity,
+							preset: selectedPreset
 						})}
 					/>
 

@@ -159,6 +159,15 @@ describe('Prompt Traits Compiler', () => {
 			expect(compiled).toBe('The user is Alice, Software Engineer.');
 		});
 
+		it('should compile curiosity into a bounded exploration preference', () => {
+			const compiled = compileUserPersona({
+				name: 'Noah',
+				communicationStyle: { curiosity: 5, questionFrequency: 2 }
+			});
+			expect(compiled).toContain('Curiosity: 5/5; gently explore ambiguity');
+			expect(compiled).toContain('Question frequency: 2/5');
+		});
+
 		it('should validate with Zod and fail on invalid profile', () => {
 			expect(() => {
 				compileUserPersona({ bio: 'No name provided' });

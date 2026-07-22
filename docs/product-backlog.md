@@ -74,12 +74,12 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P4. Expand personality and interaction preferences
 
-**Status: In progress**
+**Status: Complete**
 
 **Outcome:** MOONDAY can feel like the user’s preferred kind of copilot.
 
-- [x] Refine warmth, humor, directness, response length, and formality controls. Curiosity remains to be added.
-- [ ] Provide safe presets such as **Calm Operator**, **Friendly Copilot**, and **Dryly Witty Observer**.
+- [x] Refine warmth, humor, directness, curiosity, response length, and formality controls.
+- [x] Provide safe presets: **Calm Operator**, **Friendly Copilot**, and **Dryly Witty Observer**.
 - [x] Add a live sample response before a preference is saved.
 - [x] Keep all character profiles within the same safety, privacy, and non-diagnostic boundaries.
 
@@ -87,14 +87,14 @@ MOONDAY should not pursue Character.AI as a public character marketplace. Its ad
 
 ### P5. Conversation steering and useful artifacts
 
-**Status: In progress**
+**Status: Complete**
 
 **Outcome:** the user can shape a reply rather than starting over.
 
-- [ ] Offer response variants: shorter, warmer, funnier, more direct, and more practical. Shorter, more practical, and go deeper are available.
-- [ ] Allow message editing, regenerate, and branching a conversation from an earlier message. Editing and regenerate are available; branching remains.
-- [ ] Support pinning a useful answer and saving a reflection as a memory only with clear user intent. Saving a reflection is available; pinning remains.
-- [ ] Add one-click conversation summaries and optional action-item extraction.
+- [x] Offer response variants: shorter, warmer, funnier, more direct, more practical, and go deeper.
+- [x] Allow message editing, regenerate, and branching a conversation from an earlier message.
+- [x] Support pinning a useful answer by explicitly saving a reflection to memories.
+- [x] Add one-click conversation summaries and optional action-item extraction.
 
 **Done when:** users can quickly turn an almost-right response into a useful one.
 

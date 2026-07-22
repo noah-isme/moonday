@@ -309,6 +309,15 @@
 			</div>
 
 			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					onclick={() => chatStore.createConversationArtifacts()}
+					disabled={!activeConv || chatStore.isThinking || chatStore.isStreaming}
+					class="rounded-lg border border-slate-gray/15 px-2 py-1.5 text-[10px] font-semibold text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver disabled:opacity-50"
+					title="Create conversation summary and action items"
+				>
+					Summary
+				</button>
 				<!-- Speaker mute/unmute button indicator -->
 				<button
 					type="button"
@@ -412,6 +421,21 @@
 					aria-label="Dismiss chat error"
 					class="font-bold hover:text-soft-white cursor-pointer">×</button
 				>
+			</div>
+		{/if}
+
+		{#if chatStore.artifacts}
+			<div
+				class="mb-3 rounded-xl border border-cyan-glow/20 bg-cyan-glow/5 p-3 text-xs text-slate-gray"
+			>
+				<p class="font-semibold text-pale-silver">Conversation recap</p>
+				<p class="mt-1 leading-relaxed">{chatStore.artifacts.summary}</p>
+				{#if chatStore.artifacts.actionItems.length > 0}
+					<p class="mt-3 font-semibold text-pale-silver">Possible next steps</p>
+					<ul class="mt-1 list-disc space-y-1 pl-4">
+						{#each chatStore.artifacts.actionItems as item}<li>{item}</li>{/each}
+					</ul>
+				{/if}
 			</div>
 		{/if}
 

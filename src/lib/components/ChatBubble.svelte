@@ -35,12 +35,14 @@
 	}
 
 	function saveReflection() {
-		memoryStore.addMemory({
+		void memoryStore.saveSuggestion({
 			type: 'reflection',
 			title: `MOONDAY reflection — ${new Date(message.createdAt).toLocaleDateString()}`,
 			content: message.content,
 			importance: 6,
-			confidence: 0.8
+			confidence: 0.8,
+			sourceConversationId: chatStore.activeId || undefined,
+			sourceMessageId: message.persisted ? message.id : undefined
 		});
 	}
 
@@ -215,7 +217,7 @@
 
 			{#if message.role === 'assistant' && isLastAssistant && message.content}
 				<div class="flex flex-wrap gap-1.5 px-1 mt-1">
-					{#each [['Shorter', 'Please make your previous response shorter and clearer.'], ['More practical', 'Please turn your previous response into practical next steps.'], ['Go deeper', 'Please go deeper on your previous response.']] as action}
+					{#each [['Shorter', 'Please make your previous response shorter and clearer.'], ['Warmer', 'Please make your previous response warmer and more reassuring, without becoming dramatic.'], ['Funnier', 'Please make your previous response a little funnier and lightly witty, never mean.'], ['More direct', 'Please make your previous response more direct and concise.'], ['More practical', 'Please turn your previous response into practical next steps.'], ['Go deeper', 'Please go deeper on your previous response.']] as action}
 						<button
 							type="button"
 							onclick={() => chatStore.sendMessage(action[1])}
@@ -235,6 +237,12 @@
 						onclick={saveReflection}
 						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
 						>Save reflection</button
+					>
+					<button
+						type="button"
+						onclick={() => chatStore.branchConversation(message.id)}
+						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
+						>Branch here</button
 					>
 				</div>
 			{/if}

@@ -52,7 +52,9 @@ export const GET: RequestHandler = async () => {
 };
 
 const createConversationSchema = z.object({
-	characterId: z.string().trim().min(1).optional()
+	characterId: z.string().trim().min(1).optional(),
+	sourceConversationId: z.string().uuid().optional(),
+	sourceMessageId: z.string().uuid().optional()
 });
 
 const isUuid = (value: string) =>
@@ -65,6 +67,59 @@ export const POST: RequestHandler = async ({ request }) => {
 		let [user] = await db.select().from(users).limit(1);
 		if (!user) {
 			[user] = await db.insert(users).values({ displayName: 'Local User' }).returning();
+		}
+		if (input.sourceConversationId && input.sourceMessageId) {
+			const [sourceConversation] = await db
+				.select()
+				.from(conversations)
+				.where(eq(conversations.id, input.sourceConversationId))
+				.limit(1);
+			if (!sourceConversation || sourceConversation.userId !== user.id) {
+				return json(
+					{ error: { code: 'NOT_FOUND', message: 'Conversation not found.' } },
+					{ status: 404 }
+				);
+			}
+			const sourceMessages = await db
+				.select()
+				.from(messages)
+				.where(eq(messages.conversationId, sourceConversation.id))
+				.orderBy(asc(messages.createdAt));
+			const branchAt = sourceMessages.findIndex((message) => message.id === input.sourceMessageId);
+			if (branchAt === -1) {
+				return json(
+					{ error: { code: 'NOT_FOUND', message: 'Message not found.' } },
+					{ status: 404 }
+				);
+			}
+			const [conversation] = await db
+				.insert(conversations)
+				.values({
+					userId: user.id,
+					activeCharacterId: sourceConversation.activeCharacterId,
+					memoryExtractionEnabled: sourceConversation.memoryExtractionEnabled,
+					title: `Branch: ${sourceConversation.title || 'Reflection'}`
+				})
+				.returning();
+			const copiedMessages = sourceMessages.slice(0, branchAt + 1);
+			let branchMessages: typeof sourceMessages = [];
+			if (copiedMessages.length > 0) {
+				branchMessages = await db
+					.insert(messages)
+					.values(
+						copiedMessages.map((message) => ({
+							conversationId: conversation.id,
+							role: message.role,
+							content: message.content,
+							provider: message.provider,
+							model: message.model,
+							emotionLabel: message.emotionLabel,
+							moodScore: message.moodScore
+						}))
+					)
+					.returning();
+			}
+			return json({ conversation, messages: branchMessages }, { status: 201 });
 		}
 
 		let character;

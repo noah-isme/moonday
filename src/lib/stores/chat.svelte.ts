@@ -53,6 +53,11 @@ export interface PendingMemory {
 	sourceMessageId: string;
 }
 
+export interface ConversationArtifacts {
+	summary: string;
+	actionItems: string[];
+}
+
 export class ChatStore {
 	conversations = $state<Conversation[]>([]);
 	activeId = $state<string | null>(null);
@@ -64,6 +69,7 @@ export class ChatStore {
 	error = $state<string | null>(null);
 	usedMemories = $state<UsedMemoryContext[]>([]);
 	pendingMemories = $state<PendingMemory[]>([]);
+	artifacts = $state<ConversationArtifacts | null>(null);
 	lastSentMessage = $state<string | null>(null);
 	isLoading = $state<boolean>(false);
 	private isCreatingConversation = false;
@@ -221,6 +227,51 @@ export class ChatStore {
 			return null;
 		} finally {
 			this.isCreatingConversation = false;
+		}
+	}
+
+	async branchConversation(messageId: string) {
+		if (!this.activeId || this.isThinking || this.isStreaming) return false;
+		this.error = null;
+		try {
+			const response = await fetch('/api/conversations', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ sourceConversationId: this.activeId, sourceMessageId: messageId })
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			const data = (await response.json()) as {
+				conversation: Conversation;
+				messages: ChatMessage[];
+			};
+			this.conversations = [data.conversation, ...this.conversations];
+			this.messages[data.conversation.id] = data.messages.map((message) => ({
+				...message,
+				persisted: true
+			}));
+			this.activeId = data.conversation.id;
+			return true;
+		} catch (error) {
+			this.error =
+				error instanceof Error ? error.message : 'Unable to create a conversation branch.';
+			return false;
+		}
+	}
+
+	async createConversationArtifacts() {
+		if (!this.activeId) return null;
+		this.error = null;
+		try {
+			const response = await fetch(`/api/conversations/${this.activeId}/artifacts`, {
+				method: 'POST'
+			});
+			if (!response.ok) throw new Error(await this.getResponseError(response));
+			this.artifacts = await response.json();
+			return this.artifacts;
+		} catch (error) {
+			this.error =
+				error instanceof Error ? error.message : 'Unable to create a conversation summary.';
+			return null;
 		}
 	}
 

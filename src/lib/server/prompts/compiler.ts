@@ -89,6 +89,7 @@ export function compileUserPersona(profile: unknown): string {
 	const humor = numericPreference('humor');
 	const responseLength = numericPreference('responseLength');
 	const questionFrequency = numericPreference('questionFrequency');
+	const curiosity = numericPreference('curiosity');
 
 	if (warmth !== undefined) preferences.push(`Emotional warmth: ${warmth}/5.`);
 	if (directness !== undefined) preferences.push(`Directness: ${directness}/5.`);
@@ -99,6 +100,13 @@ export function compileUserPersona(profile: unknown): string {
 		preferences.push(
 			`Question frequency: ${questionFrequency}/5; do not ask a question by default.`
 		);
+	if (curiosity !== undefined) {
+		preferences.push(
+			curiosity >= 4
+				? `Curiosity: ${curiosity}/5; gently explore ambiguity when it helps, while respecting the question-frequency preference.`
+				: `Curiosity: ${curiosity}/5; stay focused on the user's stated need and avoid digging for extra detail.`
+		);
+	}
 
 	return preferences.length > 0
 		? `${description}\n\n[User Response Preferences]\n${preferences.join(' ')}`
