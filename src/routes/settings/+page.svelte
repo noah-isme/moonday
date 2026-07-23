@@ -5,6 +5,7 @@
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import CharacterSelector from '$lib/components/CharacterSelector.svelte';
 	import ProviderSelector from '$lib/components/ProviderSelector.svelte';
+	import { CircleCheck, TriangleAlert } from 'lucide-svelte';
 
 	let { data, form } = $props<{
 		data: { profile: any };
@@ -230,7 +231,7 @@
 				<div
 					class="p-3 bg-calm-green/10 border border-calm-green/20 rounded-xl text-xs text-calm-green flex items-center gap-2"
 				>
-					<span>✓</span>
+					<CircleCheck size={16} aria-hidden="true" />
 					<span>Profile updated successfully!</span>
 				</div>
 			{/if}
@@ -239,7 +240,7 @@
 				<div
 					class="p-3 bg-soft-red/10 border border-soft-red/20 rounded-xl text-xs text-soft-red flex items-center gap-2"
 				>
-					<span>⚠️</span>
+					<TriangleAlert size={16} aria-hidden="true" />
 					<span>{form.error._form}</span>
 				</div>
 			{/if}
@@ -569,7 +570,7 @@
 				<div
 					class="p-3.5 bg-soft-red/10 border border-soft-red/20 rounded-xl text-xs text-soft-red/80 flex items-start gap-2.5 leading-normal"
 				>
-					<span>⚠️</span>
+					<TriangleAlert size={16} class="shrink-0" aria-hidden="true" />
 					<span
 						>Web Speech API is not supported or partially blocked by your browser. Try opening
 						MOONDAY in Chrome, Safari, or Microsoft Edge for the best experience.</span
@@ -658,7 +659,9 @@
 								settingsStore.setVoiceRate(Number((event.currentTarget as HTMLInputElement).value))}
 							class="accent-violet-glow"
 						/>
-						<span class="text-[10px] text-slate-gray">MOONDAY reads only the first few sentences aloud.</span>
+						<span class="text-[10px] text-slate-gray"
+							>MOONDAY reads only the first few sentences aloud.</span
+						>
 					</label>
 				</div>
 			{/if}

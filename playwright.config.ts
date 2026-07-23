@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const playwrightPort = process.env.PLAYWRIGHT_PORT || '5180';
+const playwrightBaseUrl = `http://127.0.0.1:${playwrightPort}`;
+
 /**
  * Playwright configuration for MOONDAY E2E and Visual Regression Testing.
  */
@@ -11,7 +14,7 @@ export default defineConfig({
 	workers: process.env.CI ? 1 : undefined,
 	reporter: [['list'], ['html', { open: 'never' }]],
 	use: {
-		baseURL: 'http://localhost:5180',
+		baseURL: playwrightBaseUrl,
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
 		actionTimeout: 10000
@@ -33,8 +36,8 @@ export default defineConfig({
 		}
 	],
 	webServer: {
-		command: 'bun run dev',
-		url: 'http://localhost:5180',
+		command: `bun run dev -- --host 127.0.0.1 --port ${playwrightPort}`,
+		url: playwrightBaseUrl,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120000
 	}

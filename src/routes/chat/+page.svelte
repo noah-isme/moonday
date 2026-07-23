@@ -5,25 +5,35 @@
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { memoryStore } from '$lib/stores/memory.svelte';
 	import { voiceStore } from '$lib/stores/voice.svelte';
+	import { uiStore } from '$lib/stores/ui.svelte';
 	import ChatBubble from '$lib/components/ChatBubble.svelte';
 	import ChatInput from '$lib/components/ChatInput.svelte';
-	import CharacterSelector from '$lib/components/CharacterSelector.svelte';
 	import ProviderSelector from '$lib/components/ProviderSelector.svelte';
 	import CoViewerComposer from '$lib/components/CoViewerComposer.svelte';
 	import type { CoViewerMode } from '$lib/types/co-viewer';
 	import type { ImageAttachment, UrlContext } from '$lib/types/multimodal';
 	import MultimodalContextComposer from '$lib/components/MultimodalContextComposer.svelte';
+	import ConversationHistory from '$lib/components/ConversationHistory.svelte';
+	import AvatarMoon from '$lib/components/AvatarMoon.svelte';
+	import {
+		BookOpenText,
+		History,
+		PanelLeftClose,
+		Settings2,
+		Volume2,
+		VolumeX,
+		X
+	} from 'lucide-svelte';
 
 	let scrollContainer = $state<HTMLDivElement | null>(null);
 	let drawerOpen = $state(false);
+	let historyPanelOpen = $state(true);
 	let dailyPromptDismissed = $state(false);
 	let dailyContinuity = $state<{
 		source: 'mood' | 'goal' | 'conversation' | 'check_in';
 		prompt: string;
 	} | null>(null);
 	let doNotRememberNextMessage = $state(false);
-	let renameId = $state<string | null>(null);
-	let renameValue = $state('');
 	let coViewerOpen = $state(false);
 	let multimodalOpen = $state(false);
 
@@ -59,10 +69,6 @@
 		if (settingsStore.proactiveCheckInTime === 'morning') return hour < 12;
 		if (settingsStore.proactiveCheckInTime === 'afternoon') return hour >= 12 && hour < 17;
 		return hour >= 17;
-	}
-
-	function focus(node: HTMLInputElement) {
-		node.focus();
 	}
 
 	// Auto-scroll to bottom of chat
@@ -141,10 +147,13 @@
 	async function handleCoViewerSubmit(content: string, mode: CoViewerMode) {
 		coViewerOpen = false;
 		const modeLabel = mode.replaceAll('_', ' ');
-		await chatStore.sendMessage(`I brought something I saw online. Please ${modeLabel} on it:\n\n${content}`, {
-			doNotRemember: true,
-			coViewerMode: mode
-		});
+		await chatStore.sendMessage(
+			`I brought something I saw online. Please ${modeLabel} on it:\n\n${content}`,
+			{
+				doNotRemember: true,
+				coViewerMode: mode
+			}
+		);
 	}
 
 	async function handleMultimodalContext(context: {
@@ -178,34 +187,15 @@
 		await chatStore.retryLastMessage();
 	}
 
-	async function handleCreateChat() {
-		await chatStore.createNewConversation();
-		scrollToBottom('auto');
-	}
-
 	function handleSelectChat(id: string) {
 		chatStore.selectConversation(id);
+		setHistoryDrawer(false);
 		scrollToBottom('auto');
 	}
 
-	function startRename(id: string, title: string) {
-		renameId = id;
-		renameValue = title;
-	}
-
-	async function saveRename() {
-		if (renameId && renameValue.trim()) {
-			const renamed = await chatStore.updateConversationTitle(renameId, renameValue.trim());
-			if (renamed) renameId = null;
-		}
-	}
-
-	async function handleRenameKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			await saveRename();
-		} else if (event.key === 'Escape') {
-			renameId = null;
-		}
+	function setHistoryDrawer(open: boolean) {
+		const toggle = document.getElementById('conversation-history-toggle') as HTMLInputElement | null;
+		if (toggle) toggle.checked = open;
 	}
 
 	// Dynamic title based on active companion
@@ -213,225 +203,134 @@
 </script>
 
 <div
-	class="flex-1 flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)] md:h-[calc(100vh-60px)] min-h-0 overflow-hidden relative"
+	class="relative flex h-[calc(100vh-140px)] min-h-0 flex-1 flex-col gap-4 overflow-hidden md:h-[calc(100vh-40px)] md:flex-row"
 >
-	<!-- Left sidebar (Conversations history selector) on Desktop -->
-	<div
-		class="hidden lg:flex flex-col w-64 bg-soft-dark-blue/40 border border-slate-gray/10 rounded-3xl p-4 flex-shrink-0 min-h-0"
-	>
-		<div class="flex items-center justify-between mb-4 select-none">
-			<span class="text-xs font-bold text-slate-gray uppercase tracking-wider">Reflections Log</span
-			>
-			<button
-				onclick={handleCreateChat}
-				class="text-xs text-violet-glow hover:text-violet-glow/85 font-semibold flex items-center gap-1 cursor-pointer"
-				title="Create a new conversation session"
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke-width="2.5"
-					stroke="currentColor"
-					class="w-3.5 h-3.5"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-				</svg>
-				<span>New</span>
-			</button>
-		</div>
+	<input
+		id="conversation-history-toggle"
+		type="checkbox"
+		class="peer sr-only xl:hidden"
+	/>
 
-		<!-- List of Conversations -->
-		<div class="flex-1 overflow-y-auto space-y-1 pr-1">
-			{#each chatStore.conversations as conv}
-				<div
-					class="group flex items-center justify-between p-2.5 rounded-xl text-xs transition-all duration-300 w-full {chatStore.activeId ===
-					conv.id
-						? 'bg-soft-dark-blue border border-slate-gray/15 text-soft-white'
-						: 'text-slate-gray hover:bg-soft-dark-blue/30'}"
-				>
-					{#if renameId === conv.id}
-						<input
-							type="text"
-							bind:value={renameValue}
-							onblur={saveRename}
-							onkeydown={handleRenameKeyDown}
-							class="flex-1 bg-deep-navy border border-violet-glow/40 rounded px-1.5 py-0.5 text-xs text-soft-white outline-none focus:ring-1 focus:ring-violet-glow"
-							/* eslint-disable-next-line svelte/valid-compile */
-							use:focus
-						/>
-					{:else}
-						<button
-							onclick={() => handleSelectChat(conv.id)}
-							class="flex-1 text-left truncate font-medium hover:text-pale-silver cursor-pointer pr-1"
-							title={conv.title}
-						>
-							{conv.title}
-						</button>
-
-						<!-- Conversation Actions -->
-						<div
-							class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-						>
-							<button
-								onclick={() => startRename(conv.id, conv.title)}
-								class="p-1 hover:text-cyan-glow text-slate-gray cursor-pointer"
-								title="Rename conversation"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke-width="2"
-									stroke="currentColor"
-									class="w-3 h-3"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-									/>
-								</svg>
-							</button>
-							{#if chatStore.conversations.length > 1}
-								<button
-									onclick={async () => await chatStore.deleteConversation(conv.id)}
-									class="p-1 hover:text-soft-red text-slate-gray cursor-pointer"
-									title="Delete session"
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke-width="2"
-										stroke="currentColor"
-										class="w-3 h-3"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-										/>
-									</svg>
-								</button>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<p class="text-xs text-slate-gray text-center mt-4 select-none">No active sessions.</p>
-			{/each}
-		</div>
-	</div>
+	{#if historyPanelOpen}
+		<aside
+			class="hidden w-[280px] min-h-0 flex-shrink-0 overflow-hidden rounded-3xl border border-white/6 xl:block"
+			aria-label="Conversation history"
+		>
+			<ConversationHistory onSelect={handleSelectChat} />
+		</aside>
+	{/if}
 
 	<!-- Center Chat Message Window -->
 	<div
-		class="flex-1 flex flex-col bg-soft-dark-blue/15 border border-slate-gray/10 rounded-3xl p-4 md:p-6 min-h-0 overflow-hidden"
+		class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl bg-soft-dark-blue/18 p-3 md:p-5"
 	>
-		<!-- Chat Header Toolbar -->
-		<div
-			class="flex items-center justify-between pb-3 border-b border-slate-gray/10 mb-4 select-none"
-		>
-			<div class="flex items-center gap-2">
-				<label class="sr-only" for="response-language">Response language</label>
-				<select
-					id="response-language"
-					value={settingsStore.responseLanguage}
-					onchange={(event) =>
-						settingsStore.setResponseLanguage(
-							(event.currentTarget as HTMLSelectElement).value as 'auto' | 'en' | 'id'
-						)}
-					class="max-w-24 sm:max-w-none rounded-lg border border-slate-gray/15 bg-deep-navy/50 px-2 py-1.5 text-xs text-pale-silver outline-none focus:border-violet-glow/60"
-					title="Choose MOONDAY's response language"
-				>
-					<option value="auto">Auto</option>
-					<option value="en">English</option>
-					<option value="id">Bahasa Indonesia</option>
-				</select>
-				<h2 class="text-sm font-bold text-soft-white truncate max-w-[200px] md:max-w-sm">
-					{activeConv?.title || `Chatting with ${activeCompanionName}`}
-				</h2>
+		<!-- Chat header -->
+		<header class="mb-3 flex items-center justify-between gap-3 px-1 pb-3 select-none">
+			<div class="flex min-w-0 items-center gap-3">
+				<div class="h-10 w-10 shrink-0">
+					<AvatarMoon state={uiStore.moonState} />
+				</div>
+				<div class="min-w-0">
+					<h2 class="truncate text-base font-semibold text-soft-white md:text-lg">
+						{activeConv?.title || `Chatting with ${activeCompanionName}`}
+					</h2>
+					<div class="mt-0.5 flex items-center gap-2 text-xs text-slate-gray">
+						<span class="truncate">{activeCompanionName}</span>
+						<span aria-hidden="true">·</span>
+						<span class="capitalize">{uiStore.moonState}</span>
+						<label class="sr-only" for="response-language">Response language</label>
+						<select
+							id="response-language"
+							value={settingsStore.responseLanguage}
+							onchange={(event) =>
+								settingsStore.setResponseLanguage(
+									(event.currentTarget as HTMLSelectElement).value as 'auto' | 'en' | 'id'
+								)}
+							class="max-w-24 rounded-lg border border-white/8 bg-deep-navy/55 px-2 py-1 text-xs text-pale-silver outline-none"
+							title="Response language"
+						>
+							<option value="auto">Auto language</option>
+							<option value="en">English</option>
+							<option value="id">Bahasa Indonesia</option>
+						</select>
+					</div>
+				</div>
 			</div>
 
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-1">
+				<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+				<label
+					for="conversation-history-toggle"
+					role="button"
+					tabindex="0"
+					onkeydown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault();
+							setHistoryDrawer(true);
+						}
+					}}
+					class="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-gray hover:bg-white/6 xl:hidden"
+					title="Open conversation history"
+					aria-label="Open conversation history"
+				>
+					<History size={18} aria-hidden="true" />
+				</label>
+				<button
+					type="button"
+					onclick={() => (historyPanelOpen = !historyPanelOpen)}
+					class="hidden h-9 w-9 items-center justify-center rounded-xl text-slate-gray hover:bg-white/6 xl:inline-flex"
+					title={historyPanelOpen ? 'Collapse conversation history' : 'Open conversation history'}
+					aria-label={historyPanelOpen
+						? 'Collapse conversation history'
+						: 'Open conversation history'}
+					aria-expanded={historyPanelOpen}
+				>
+					{#if historyPanelOpen}
+						<PanelLeftClose size={18} aria-hidden="true" />
+					{:else}
+						<History size={18} aria-hidden="true" />
+					{/if}
+				</button>
 				<button
 					type="button"
 					onclick={() => chatStore.createConversationArtifacts()}
 					disabled={!activeConv || chatStore.isThinking || chatStore.isStreaming}
-					class="rounded-lg border border-slate-gray/15 px-2 py-1.5 text-[10px] font-semibold text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver disabled:opacity-50"
+					class="hidden h-9 items-center gap-1.5 rounded-xl border border-white/8 px-3 text-xs font-semibold text-pale-silver hover:bg-white/5 disabled:opacity-50 sm:flex"
 					title="Create conversation summary and action items"
 				>
-					Summary
+					<BookOpenText size={16} aria-hidden="true" />
+					<span>Summary</span>
 				</button>
-				<!-- Speaker mute/unmute button indicator -->
 				<button
 					type="button"
 					onclick={() => settingsStore.toggleVoiceOutput()}
-					class="p-2 rounded-xl text-slate-gray hover:text-pale-silver hover:bg-soft-dark-blue/40 transition-all duration-300 cursor-pointer"
-					title={settingsStore.voiceOutputEnabled
-						? 'Mute AI voice responses'
-						: 'Unmute AI voice responses'}
+					class="icon-button {settingsStore.voiceOutputEnabled
+						? 'text-cyan-glow'
+						: 'text-slate-gray'}"
+					title={settingsStore.voiceOutputEnabled ? 'Mute MOONDAY voice' : 'Enable MOONDAY voice'}
+					aria-label={settingsStore.voiceOutputEnabled
+						? 'Mute MOONDAY voice'
+						: 'Enable MOONDAY voice'}
+					aria-pressed={settingsStore.voiceOutputEnabled}
 				>
 					{#if settingsStore.voiceOutputEnabled}
-						<!-- Volume High Icon -->
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke-width="2"
-							stroke="currentColor"
-							class="w-4 h-4 text-cyan-glow"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
-							/>
-						</svg>
+						<Volume2 size={18} aria-hidden="true" />
 					{:else}
-						<!-- Volume Mute Icon -->
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke-width="2"
-							stroke="currentColor"
-							class="w-4 h-4"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
-							/>
-						</svg>
+						<VolumeX size={18} aria-hidden="true" />
 					{/if}
 				</button>
-
-				<!-- Toggle drawer button -->
 				<button
 					type="button"
 					onclick={() => (drawerOpen = !drawerOpen)}
-					class="p-2 rounded-xl text-slate-gray hover:text-pale-silver hover:bg-soft-dark-blue/40 transition-all duration-300 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-					title="Toggle memories & configurations drawer"
+					class="icon-button text-slate-gray"
+					title="Open companion context"
+					aria-label="Open companion context"
+					aria-expanded={drawerOpen}
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-						stroke="currentColor"
-						class="w-4 h-4"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"
-						/>
-					</svg>
-					<span class="hidden sm:inline">Context & Settings</span>
+					<Settings2 size={18} aria-hidden="true" />
 				</button>
 			</div>
-		</div>
+		</header>
 
 		{#if chatStore.error}
 			<div
@@ -464,8 +363,10 @@
 					type="button"
 					onclick={() => (chatStore.error = null)}
 					aria-label="Dismiss chat error"
-					class="font-bold hover:text-soft-white cursor-pointer">×</button
+					class="icon-button shrink-0 text-soft-red hover:text-soft-white"
 				>
+					<X size={16} aria-hidden="true" />
+				</button>
 			</div>
 		{/if}
 
@@ -478,7 +379,7 @@
 				{#if chatStore.artifacts.actionItems.length > 0}
 					<p class="mt-3 font-semibold text-pale-silver">Possible next steps</p>
 					<ul class="mt-1 list-disc space-y-1 pl-4">
-						{#each chatStore.artifacts.actionItems as item}<li>{item}</li>{/each}
+						{#each chatStore.artifacts.actionItems as item (item)}<li>{item}</li>{/each}
 					</ul>
 				{/if}
 			</div>
@@ -486,7 +387,7 @@
 
 		{#if chatStore.usedMemories.length > 0}
 			<div
-				class="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-cyan-glow/15 bg-cyan-glow/5 px-3 py-2 text-[10px] text-slate-gray"
+				class="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl border border-cyan-glow/15 bg-cyan-glow/5 px-3 py-2 text-xs text-slate-gray"
 			>
 				<span class="font-semibold text-pale-silver">Using context:</span>
 				{#each chatStore.usedMemories as memory (memory.id)}
@@ -499,8 +400,10 @@
 							type="button"
 							onclick={() => chatStore.dismissUsedMemory(memory.id)}
 							aria-label={`Dismiss ${memory.title}`}
-							class="hover:text-soft-white">×</button
+							class="hover:text-soft-white"
 						>
+							<X size={12} aria-hidden="true" />
+						</button>
 					</span>
 				{/each}
 				<button
@@ -548,7 +451,10 @@
 		{/if}
 
 		<!-- Scrollable Messages Container -->
-		<div bind:this={scrollContainer} class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-1 scroll-smooth">
+		<div
+			bind:this={scrollContainer}
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-1 scroll-smooth"
+		>
 			{#if showDailyContinuity}
 				<div
 					class="mx-auto mb-4 max-w-lg rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-4 text-center"
@@ -592,20 +498,7 @@
 				<div
 					class="h-full flex flex-col items-center justify-center text-center p-6 select-none opacity-40"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						class="w-12 h-12 mb-2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M12 3v1.5M12 18.75V21m-7.5-9h1.5m14.25 0h1.5m-15.03-6.53 1.06 1.06m11.94 11.94 1.06 1.06m-12.06 0-1.06 1.06m11.94-11.94-1.06 1.06M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"
-						/>
-					</svg>
+					<div class="mb-3 h-12 w-12"><AvatarMoon /></div>
 					<p class="text-sm font-semibold">Start sharing your day.</p>
 					<p class="text-xs max-w-xs mt-1">
 						MOONDAY parses feelings and reflects contexts dynamically.
@@ -618,7 +511,7 @@
 					<p class="text-xs font-semibold text-pale-silver">A gentle place to begin</p>
 					<p class="text-xs text-slate-gray mt-1">Pick a thought, or write your own.</p>
 					<div class="grid gap-2 mt-4 text-left">
-					{#each starterPrompts as prompt}
+						{#each starterPrompts as prompt (prompt)}
 							<button
 								type="button"
 								onclick={() => handleSend(prompt)}
@@ -626,13 +519,13 @@
 							>
 								{prompt}
 							</button>
-					{/each}
-					<button
-						type="button"
-						onclick={() => (coViewerOpen = true)}
-						class="w-full px-4 py-3 rounded-2xl bg-violet-glow/10 border border-violet-glow/30 text-xs text-pale-silver hover:bg-violet-glow/20 transition-colors cursor-pointer"
-						>Bring something you saw</button
-					>
+						{/each}
+						<button
+							type="button"
+							onclick={() => (coViewerOpen = true)}
+							class="w-full px-4 py-3 rounded-2xl bg-violet-glow/10 border border-violet-glow/30 text-xs text-pale-silver hover:bg-violet-glow/20 transition-colors cursor-pointer"
+							>Bring something you saw</button
+						>
 					</div>
 				</div>
 			{/if}
@@ -664,30 +557,61 @@
 		</div>
 
 		<!-- Chat Input Area -->
-		<div class="pt-4 border-t border-slate-gray/10 mt-2">
+		<div class="mt-2 pt-3">
 			{#if multimodalOpen}
-				<MultimodalContextComposer onReady={handleMultimodalContext} onClose={() => (multimodalOpen = false)} />
+				<MultimodalContextComposer
+					onReady={handleMultimodalContext}
+					onClose={() => (multimodalOpen = false)}
+				/>
 			{/if}
 			{#if coViewerOpen}
 				<CoViewerComposer onSubmit={handleCoViewerSubmit} onClose={() => (coViewerOpen = false)} />
 			{/if}
-			<div class="mb-2 flex gap-3">
-			<button
-				type="button"
-				onclick={() => (coViewerOpen = !coViewerOpen)}
-				class="mb-2 text-xs text-slate-gray hover:text-violet-glow"
-				>{coViewerOpen ? 'Hide co-viewer' : 'Bring something you saw'}</button
-			>
-				<button type="button" onclick={() => (multimodalOpen = !multimodalOpen)} class="text-xs text-slate-gray hover:text-cyan-glow">{multimodalOpen ? 'Hide context' : 'Add image or link'}</button>
-			</div>
 			<ChatInput
 				onSend={handleSend}
 				isThinking={isThinkingOrStreaming}
 				doNotRemember={doNotRememberNextMessage}
 				onToggleDoNotRemember={() => (doNotRememberNextMessage = !doNotRememberNextMessage)}
+				onAddContext={() => {
+					coViewerOpen = false;
+					multimodalOpen = !multimodalOpen;
+				}}
+				onAddCoViewer={() => {
+					multimodalOpen = false;
+					coViewerOpen = !coViewerOpen;
+				}}
 			/>
 		</div>
 	</div>
+
+	<label
+		for="conversation-history-toggle"
+		class="absolute inset-0 z-30 hidden bg-deep-navy/70 backdrop-blur-sm peer-checked:block xl:hidden"
+		aria-label="Close conversation history"
+	></label>
+	<aside
+		class="absolute inset-y-0 left-0 z-40 hidden w-[min(320px,88vw)] overflow-hidden rounded-r-3xl border-r border-white/8 shadow-2xl peer-checked:block xl:hidden"
+		aria-label="Conversation history"
+	>
+		<ConversationHistory onSelect={handleSelectChat} />
+		<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+		<label
+			for="conversation-history-toggle"
+			role="button"
+			tabindex="0"
+			onkeydown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					event.preventDefault();
+					setHistoryDrawer(false);
+				}
+			}}
+			class="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-gray hover:bg-white/6"
+			title="Close conversation history"
+			aria-label="Close conversation history"
+		>
+			<X size={18} aria-hidden="true" />
+		</label>
+	</aside>
 
 	<!-- Right Drawer (Remembered Context / Memories & Settings Drawer) -->
 	{#if drawerOpen}
@@ -699,20 +623,13 @@
 			>
 				<h3 class="font-bold text-soft-white text-md">Companion Context</h3>
 				<button
+					type="button"
 					onclick={() => (drawerOpen = false)}
-					class="p-1 text-slate-gray hover:text-soft-white cursor-pointer"
-					title="Close drawer"
+					class="icon-button text-slate-gray"
+					title="Close companion context"
+					aria-label="Close companion context"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-						stroke="currentColor"
-						class="w-5 h-5"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-					</svg>
+					<X size={18} aria-hidden="true" />
 				</button>
 			</div>
 
@@ -724,13 +641,12 @@
 						class="flex items-center justify-between text-xs font-bold text-slate-gray uppercase tracking-wider"
 					>
 						<span>Saved Memories ({memoryStore.list.length})</span>
-						<a href="/memories" class="text-[10px] text-cyan-glow hover:underline normal-case"
-							>Manage</a
+						<a href="/memories" class="text-xs text-cyan-glow hover:underline normal-case">Manage</a
 						>
 					</div>
 
 					<div class="space-y-2 max-h-[220px] overflow-y-auto">
-						{#each memoryStore.list as memory}
+						{#each memoryStore.list as memory (memory.id)}
 							<div
 								class="p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl text-xs space-y-1"
 							>
@@ -739,16 +655,16 @@
 										>{memory.title}</span
 									>
 									<span
-										class="text-[8px] bg-slate-gray/10 text-slate-gray px-1 rounded uppercase tracking-wide"
+										class="rounded bg-slate-gray/10 px-1 text-xs uppercase tracking-wide text-slate-gray"
 									>
 										{memory.type.replace('_', ' ')}
 									</span>
 								</div>
-								<p class="text-slate-gray leading-normal text-[11px]">{memory.content}</p>
+								<p class="text-xs leading-normal text-slate-gray">{memory.content}</p>
 							</div>
 						{:else}
 							<div
-								class="p-3 bg-deep-navy/35 border border-dashed border-slate-gray/10 rounded-xl text-center text-[11px] text-slate-gray py-6"
+								class="rounded-xl border border-dashed border-slate-gray/10 bg-deep-navy/35 p-3 py-6 text-center text-xs text-slate-gray"
 							>
 								No memories saved yet. MOONDAY will suggest useful context for your review.
 							</div>
@@ -770,7 +686,7 @@
 							class="p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl flex items-center justify-between"
 						>
 							<span class="text-xs font-bold text-pale-silver">{activeCompanionName}</span>
-							<a href="/settings" class="text-[10px] text-violet-glow hover:underline">Change</a>
+							<a href="/settings" class="text-xs text-violet-glow hover:underline">Change</a>
 						</div>
 					</div>
 
@@ -780,7 +696,7 @@
 					>
 						<div class="flex flex-col">
 							<span class="text-xs font-semibold text-pale-silver">Remember in this chat</span>
-							<span class="text-[9px] text-slate-gray">Suggest memories for your review</span>
+							<span class="text-xs text-slate-gray">Suggest memories for your review</span>
 						</div>
 						<button
 							onclick={() =>

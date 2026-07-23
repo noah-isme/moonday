@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { moodStore, MOODS } from '$lib/stores/mood.svelte';
 	import { uiStore } from '$lib/stores/ui.svelte';
+	import MoodIcon from './MoodIcon.svelte';
+	import { ChevronDown } from 'lucide-svelte';
 
 	let { onCheckedIn } = $props<{
 		onCheckedIn?: () => void;
@@ -34,13 +36,13 @@
 	</div>
 
 	<form onsubmit={handleSubmit} class="space-y-6">
-		<!-- Mood Emoji Selection Grid -->
+		<!-- Mood selection grid -->
 		<div>
 			<p class="block text-xs font-semibold text-slate-gray uppercase tracking-wider mb-3">
 				Select Current Mood
 			</p>
 			<div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-				{#each MOODS as mood}
+				{#each MOODS as mood (mood.label)}
 					<button
 						type="button"
 						onclick={() => handleMoodSelect(mood.label)}
@@ -49,7 +51,9 @@
 							? 'border-violet-glow bg-violet-glow/10 scale-[1.03]'
 							: 'border-slate-gray/10 bg-deep-navy/40 hover:border-slate-gray/30 hover:scale-[1.02]'}"
 					>
-						<span class="text-2xl mb-1 filter drop-shadow-sm select-none">{mood.emoji}</span>
+						<span class="mb-2 text-current" aria-hidden="true">
+							<MoodIcon name={mood.icon} size={26} strokeWidth={1.7} />
+						</span>
 						<span
 							class="text-xs capitalize font-medium"
 							class:text-violet-glow={checkInState.moodLabel === mood.label}
@@ -69,7 +73,11 @@
 			aria-expanded={showDetails}
 		>
 			<span>{showDetails ? 'Hide optional details' : 'Add energy, stress, or a note'}</span>
-			<span class="text-violet-glow">{showDetails ? '−' : '+'}</span>
+			<ChevronDown
+				size={17}
+				class="text-violet-glow transition-transform {showDetails ? 'rotate-180' : ''}"
+				aria-hidden="true"
+			/>
 		</button>
 
 		{#if showDetails}

@@ -5,6 +5,16 @@
 	import { characterStore } from '$lib/stores/character.svelte';
 	import { page } from '$app/state';
 	import { uiStore } from '$lib/stores/ui.svelte';
+	import {
+		Bookmark,
+		CircleAlert,
+		CircleCheck,
+		Home,
+		MessageCircle,
+		NotebookTabs,
+		Settings,
+		X
+	} from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -13,27 +23,27 @@
 		{
 			href: '/',
 			label: 'Home',
-			icon: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25'
+			Icon: Home
 		},
 		{
 			href: '/chat',
 			label: 'Reflections',
-			icon: 'M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z'
+			Icon: MessageCircle
 		},
 		{
 			href: '/journal',
 			label: 'Journal',
-			icon: 'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25'
+			Icon: NotebookTabs
 		},
 		{
 			href: '/memories',
 			label: 'Memories',
-			icon: 'M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z'
+			Icon: Bookmark
 		},
 		{
 			href: '/settings',
 			label: 'Settings',
-			icon: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28Z'
+			Icon: Settings
 		}
 	];
 
@@ -46,16 +56,18 @@
 	<title>MOONDAY - AI Emotional Companion</title>
 </svelte:head>
 
-<div class="flex h-screen flex-col overflow-hidden bg-deep-navy text-soft-white antialiased md:flex-row">
+<div
+	class="flex h-screen flex-col overflow-hidden bg-deep-navy text-soft-white antialiased md:flex-row"
+>
 	<!-- Left Sidebar (Desktop) -->
 	<aside
-		class="hidden md:flex flex-col w-64 bg-soft-dark-blue border-r border-slate-gray/10 p-5 flex-shrink-0 select-none"
+		class="hidden w-[220px] flex-shrink-0 flex-col border-r border-white/6 bg-soft-dark-blue/70 p-5 select-none md:flex"
 	>
 		<!-- App Brand Header -->
 		<div class="flex items-center gap-2 mb-6">
 			<span class="text-xl font-black text-moon-yellow tracking-wider font-mono">MOONDAY</span>
 			<span
-				class="text-[9px] bg-violet-glow/10 text-violet-glow px-1.5 py-0.5 rounded font-mono border border-violet-glow/20 uppercase font-bold"
+				class="rounded border border-violet-glow/20 bg-violet-glow/10 px-1.5 py-0.5 font-mono text-xs font-bold uppercase text-violet-glow"
 				>MVP</span
 			>
 		</div>
@@ -72,7 +84,7 @@
 					>Companion</span
 				>
 				<span class="text-sm font-bold text-soft-white">{characterStore.activeCharacter.name}</span>
-				<span class="text-[10px] text-violet-glow block mt-0.5 capitalize italic">
+				<span class="mt-0.5 block text-xs capitalize italic text-violet-glow">
 					({uiStore.moonState})
 				</span>
 			</div>
@@ -85,20 +97,17 @@
 					currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 				<a
 					href={item.href}
+					aria-current={isActive ? 'page' : undefined}
 					class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group {isActive
 						? 'bg-violet-glow text-deep-navy font-bold'
 						: 'text-pale-silver hover:bg-slate-gray/5 hover:text-soft-white'}"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-						stroke="currentColor"
-						class="w-5 h-5 transition-transform duration-300 group-hover:scale-105"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d={item.icon} />
-					</svg>
+					<item.Icon
+						size={20}
+						strokeWidth={2}
+						class="transition-transform duration-300 group-hover:scale-105"
+						aria-hidden="true"
+					/>
 					<span>{item.label}</span>
 				</a>
 			{/each}
@@ -106,7 +115,7 @@
 
 		<!-- Bottom Brand note -->
 		<div
-			class="pt-4 border-t border-slate-gray/10 text-[10px] text-slate-gray text-center font-mono"
+			class="border-t border-slate-gray/10 pt-4 text-center font-mono text-xs leading-relaxed text-slate-gray"
 		>
 			<p>Mindful Optimist Onboard Navigator Developed Around You</p>
 		</div>
@@ -133,7 +142,11 @@
 	<main
 		class="flex-1 flex flex-col min-h-0 relative pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0 overflow-y-auto"
 	>
-		<div class="max-w-5xl w-full mx-auto p-4 sm:p-6 md:p-8 flex-1 flex flex-col min-h-0">
+		<div
+			class="mx-auto flex min-h-0 w-full flex-1 flex-col p-4 sm:p-6 {currentPath.startsWith('/chat')
+				? 'max-w-[1800px] md:p-5'
+				: 'max-w-5xl md:p-8'}"
+		>
 			{@render children()}
 		</div>
 	</main>
@@ -148,14 +161,20 @@
 					? 'bg-cyan-glow/15 border-cyan-glow/30 text-soft-white'
 					: 'bg-calm-green/15 border-calm-green/30 text-soft-white'}"
 		>
-			<span aria-hidden="true">{uiStore.notice.tone === 'error' ? '!' : '✓'}</span>
+			{#if uiStore.notice.tone === 'error'}
+				<CircleAlert size={18} aria-hidden="true" />
+			{:else}
+				<CircleCheck size={18} aria-hidden="true" />
+			{/if}
 			<span>{uiStore.notice.message}</span>
 			<button
 				type="button"
 				onclick={() => uiStore.clearNotice()}
 				aria-label="Dismiss notification"
-				class="ml-1 text-slate-gray hover:text-soft-white cursor-pointer">×</button
+				class="ml-1 cursor-pointer text-slate-gray hover:text-soft-white"
 			>
+				<X size={16} aria-hidden="true" />
+			</button>
 		</div>
 	{/if}
 
@@ -168,21 +187,13 @@
 				currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 			<a
 				href={item.href}
-				class="flex flex-col items-center justify-center w-14 h-12 rounded-xl text-[10px] transition-all duration-300"
+				aria-current={isActive ? 'page' : undefined}
+				class="flex h-12 w-14 flex-col items-center justify-center rounded-xl text-xs transition-all duration-300"
 				class:text-violet-glow={isActive}
 				class:font-bold={isActive}
 				class:text-slate-gray={!isActive}
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke-width="2"
-					stroke="currentColor"
-					class="w-5 h-5 mb-0.5"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" d={item.icon} />
-				</svg>
+				<item.Icon size={20} strokeWidth={2} class="mb-0.5" aria-hidden="true" />
 				<span>{item.label}</span>
 			</a>
 		{/each}

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { moodStore, MOODS } from '$lib/stores/mood.svelte';
 	import MoodCheckIn from '$lib/components/MoodCheckIn.svelte';
+	import MoodIcon from '$lib/components/MoodIcon.svelte';
 	import { characterStore } from '$lib/stores/character.svelte';
+	import { MessageCircle, NotebookTabs } from 'lucide-svelte';
 
 	let todayLog = $derived.by(() => {
 		if (moodStore.logs.length === 0) return null;
@@ -61,9 +63,9 @@
 				<div
 					class="flex flex-col items-center justify-center p-6 bg-deep-navy/40 rounded-2xl border border-slate-gray/5"
 				>
-					<span class="text-5xl mb-2 filter drop-shadow-md select-none"
-						>{todayMoodDetails.emoji}</span
-					>
+					<span class="mb-3 text-violet-glow" aria-hidden="true">
+						<MoodIcon name={todayMoodDetails.icon} size={48} strokeWidth={1.4} />
+					</span>
 					<span class="text-lg font-bold capitalize text-soft-white mb-1">{todayLog.moodLabel}</span
 					>
 
@@ -103,40 +105,14 @@
 					href="/chat"
 					class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-violet-glow text-deep-navy font-semibold text-sm hover:bg-violet-glow/90 shadow-md transition-all duration-300"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-						stroke="currentColor"
-						class="w-4 h-4"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-						/>
-					</svg>
+					<MessageCircle size={17} aria-hidden="true" />
 					<span>Open Reflections</span>
 				</a>
 				<a
 					href="/journal"
 					class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-soft-dark-blue border border-slate-gray/10 text-soft-white font-semibold text-sm hover:bg-slate-gray/10 transition-all duration-300"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="2"
-						stroke="currentColor"
-						class="w-4 h-4"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
-						/>
-					</svg>
+					<NotebookTabs size={17} aria-hidden="true" />
 					<span>View Journal</span>
 				</a>
 			</div>

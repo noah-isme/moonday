@@ -10,19 +10,43 @@ export interface MoodLog {
 	createdAt: string;
 }
 
-export const MOODS = [
-	{ label: 'happy', emoji: '😊', score: 4, color: 'text-yellow-400 bg-yellow-400/10' },
-	{ label: 'motivated', emoji: '🚀', score: 5, color: 'text-cyan-400 bg-cyan-400/10' },
-	{ label: 'hopeful', emoji: '✨', score: 3, color: 'text-violet-400 bg-violet-400/10' },
-	{ label: 'calm', emoji: '🌙', score: 2, color: 'text-teal-400 bg-teal-400/10' },
-	{ label: 'neutral', emoji: '😐', score: 0, color: 'text-slate-400 bg-slate-400/10' },
-	{ label: 'tired', emoji: '🥱', score: -1, color: 'text-amber-600 bg-amber-600/10' },
-	{ label: 'confused', emoji: '🌀', score: -2, color: 'text-purple-400 bg-purple-400/10' },
-	{ label: 'anxious', emoji: '😰', score: -3, color: 'text-orange-400 bg-orange-400/10' },
-	{ label: 'sad', emoji: '😢', score: -4, color: 'text-blue-400 bg-blue-400/10' },
-	{ label: 'lonely', emoji: '👤', score: -3, color: 'text-indigo-400 bg-indigo-400/10' },
-	{ label: 'angry', emoji: '😠', score: -4, color: 'text-red-400 bg-red-400/10' },
-	{ label: 'overwhelmed', emoji: '🤯', score: -5, color: 'text-rose-500 bg-rose-500/10' }
+export type MoodIconName =
+	| 'happy'
+	| 'motivated'
+	| 'hopeful'
+	| 'calm'
+	| 'neutral'
+	| 'tired'
+	| 'confused'
+	| 'anxious'
+	| 'sad'
+	| 'lonely'
+	| 'angry'
+	| 'overwhelmed';
+
+export const MOODS: {
+	label: MoodIconName;
+	icon: MoodIconName;
+	score: number;
+	color: string;
+}[] = [
+	{ label: 'happy', icon: 'happy', score: 4, color: 'text-yellow-300 bg-yellow-300/10' },
+	{ label: 'motivated', icon: 'motivated', score: 5, color: 'text-cyan-300 bg-cyan-300/10' },
+	{ label: 'hopeful', icon: 'hopeful', score: 3, color: 'text-violet-300 bg-violet-300/10' },
+	{ label: 'calm', icon: 'calm', score: 2, color: 'text-teal-300 bg-teal-300/10' },
+	{ label: 'neutral', icon: 'neutral', score: 0, color: 'text-slate-300 bg-slate-300/10' },
+	{ label: 'tired', icon: 'tired', score: -1, color: 'text-amber-400 bg-amber-400/10' },
+	{ label: 'confused', icon: 'confused', score: -2, color: 'text-purple-300 bg-purple-300/10' },
+	{ label: 'anxious', icon: 'anxious', score: -3, color: 'text-orange-300 bg-orange-300/10' },
+	{ label: 'sad', icon: 'sad', score: -4, color: 'text-blue-300 bg-blue-300/10' },
+	{ label: 'lonely', icon: 'lonely', score: -3, color: 'text-indigo-300 bg-indigo-300/10' },
+	{ label: 'angry', icon: 'angry', score: -4, color: 'text-red-300 bg-red-300/10' },
+	{
+		label: 'overwhelmed',
+		icon: 'overwhelmed',
+		score: -5,
+		color: 'text-rose-300 bg-rose-300/10'
+	}
 ];
 
 // Helper to generate some dummy historical data if none exists

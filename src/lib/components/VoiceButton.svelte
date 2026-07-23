@@ -2,6 +2,7 @@
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { onMount } from 'svelte';
+	import { Mic, Square } from 'lucide-svelte';
 
 	let { onTranscript } = $props<{
 		onTranscript?: (text: string) => void;
@@ -34,7 +35,6 @@
 			voiceStore.startListening();
 		}
 	}
-
 </script>
 
 {#if settingsStore.voiceInputEnabled}
@@ -51,9 +51,9 @@
 			? 'Microphone recording is not supported in this browser'
 			: voiceStore.isTranscribing
 				? 'Transcribing your recording…'
-			: voiceStore.isListening
-				? 'Listening… tap to stop'
-				: 'Tap to start dictation'}
+				: voiceStore.isListening
+					? 'Listening… tap to stop'
+					: 'Tap to start dictation'}
 		aria-label={voiceStore.isListening ? 'Stop voice dictation' : 'Start voice dictation'}
 	>
 		<!-- Pulsing background shadow -->
@@ -61,30 +61,11 @@
 			<span class="absolute inset-0 rounded-full bg-cyan-glow/30 animate-ping"></span>
 		{/if}
 
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="2"
-			stroke="currentColor"
-			class="w-5 h-5"
-		>
-			{#if voiceStore.isListening}
-				<!-- Animated Microphone Waves or Stop Square -->
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z"
-				/>
-			{:else}
-				<!-- Mic Icon -->
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-				/>
-			{/if}
-		</svg>
+		{#if voiceStore.isListening}
+			<Square size={17} fill="currentColor" aria-hidden="true" />
+		{:else}
+			<Mic size={20} aria-hidden="true" />
+		{/if}
 	</button>
 {/if}
 

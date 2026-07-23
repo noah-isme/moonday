@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { moodStore, MOODS } from '$lib/stores/mood.svelte';
 	import { onMount } from 'svelte';
+	import { Lightbulb } from 'lucide-svelte';
 
 	let trendsData = $state<any[]>([]);
 	let reflections = $state<any[]>([]);
@@ -346,7 +347,7 @@
 					<div
 						class="p-4 bg-violet-glow/10 border border-violet-glow/25 rounded-2xl flex gap-3 text-xs shadow-[0_0_24px_rgba(167,139,250,0.08)]"
 					>
-						<div class="text-moon-yellow mt-0.5 select-none">💡</div>
+						<Lightbulb size={18} class="mt-0.5 shrink-0 text-moon-yellow" aria-hidden="true" />
 						<div>
 							<span
 								class="font-bold text-moon-yellow block text-[10px] uppercase tracking-wider mb-1"

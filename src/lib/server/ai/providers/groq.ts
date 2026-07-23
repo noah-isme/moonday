@@ -440,7 +440,7 @@ export class GroqProvider implements AIProvider {
 		async function* makeGenerator() {
 			if (finishReason === 'tool_calls' && message?.tool_calls && message.tool_calls.length > 0) {
 				// Send status update event
-				yield { type: 'status' as const, message: '🌐 Cross-checking data on the web...' };
+				yield { type: 'status' as const, message: 'Cross-checking data on the web...' };
 
 				// Save the tool call message
 				requestMessages.push(message);

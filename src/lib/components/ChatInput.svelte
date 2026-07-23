@@ -2,20 +2,26 @@
 	import VoiceButton from './VoiceButton.svelte';
 	import { voiceStore } from '$lib/stores/voice.svelte';
 	import { chatStore } from '$lib/stores/chat.svelte';
+	import { BrainCircuit, Globe2, LoaderCircle, Paperclip, Send, Sparkles, X } from 'lucide-svelte';
 
 	let {
 		onSend,
 		isThinking = false,
 		doNotRemember = false,
-		onToggleDoNotRemember
+		onToggleDoNotRemember,
+		onAddContext,
+		onAddCoViewer
 	} = $props<{
 		onSend: (text: string) => void;
 		isThinking?: boolean;
 		doNotRemember?: boolean;
 		onToggleDoNotRemember?: () => void;
+		onAddContext?: () => void;
+		onAddCoViewer?: () => void;
 	}>();
 
 	let textValue = $state('');
+	let contextMenuOpen = $state(false);
 
 	// Handle sending messages
 	function handleSend() {
@@ -45,154 +51,182 @@
 </script>
 
 <div
-	class="w-full flex items-end gap-2 bg-soft-dark-blue p-2 rounded-2xl border border-slate-gray/10 focus-within:border-violet-glow/30 focus-within:ring-1 focus-within:ring-violet-glow/30 transition-all duration-300"
+	class="relative rounded-3xl border border-white/8 bg-soft-dark-blue/80 p-2.5 shadow-[0_16px_44px_rgba(0,0,0,0.16)] transition-colors focus-within:border-violet-glow/35"
 >
-	<!-- Voice input button integration -->
-	<VoiceButton onTranscript={handleTranscript} />
-
-	<!-- Text Area for chat message -->
-	<textarea
-		bind:value={textValue}
-		onkeydown={handleKeyDown}
-		placeholder={voiceStore.isListening ? 'Listening — tap the microphone when you are done...' : 'Type your thoughts...'}
-		disabled={isThinking}
-		rows="1"
-		class="flex-1 max-h-32 min-h-[40px] py-2.5 px-3 bg-transparent text-soft-white text-sm outline-none resize-none placeholder-slate-gray disabled:opacity-50 overflow-y-auto"
-	></textarea>
-
-	<!-- Web Search Toggle Button -->
-	<button
-		type="button"
-		onclick={onToggleDoNotRemember}
-		class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 relative group cursor-pointer border {doNotRemember
-			? 'bg-cyan-glow/15 border-cyan-glow/50 text-cyan-glow'
-			: 'bg-transparent border-slate-gray/20 text-slate-gray hover:text-pale-silver hover:border-slate-gray/40'}"
-		title={doNotRemember
-			? 'This message will not be considered for memory'
-			: 'Do not remember this message'}
-		aria-label={doNotRemember
-			? 'Allow memory suggestions for this message'
-			: 'Do not remember this message'}
-		aria-pressed={doNotRemember}
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="2"
-			stroke="currentColor"
-			class="w-4 h-4"
+	{#if voiceStore.isListening || voiceStore.isTranscribing || voiceStore.transcript.trim() || voiceStore.isPreparingSpeech}
+		<div
+			class="mb-2 flex items-center justify-between gap-3 rounded-2xl bg-deep-navy/35 px-3 py-2 text-xs"
+			aria-live="polite"
 		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M12 15.75a3.75 3.75 0 0 0 3.75-3.75V9a3.75 3.75 0 1 0-7.5 0v3A3.75 3.75 0 0 0 12 15.75Zm0 0v3m-3 0h6"
-			/>
-		</svg>
-	</button>
-
-	<!-- Web Search Toggle Button -->
-	<button
-		type="button"
-		onclick={() => chatStore.toggleWebSearch()}
-		class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 relative group cursor-pointer border {chatStore.isWebSearchEnabled
-			? 'bg-violet-glow/20 border-violet-glow text-violet-glow shadow-[0_0_10px_rgba(139,92,246,0.5)] animate-pulse'
-			: 'bg-transparent border-slate-gray/20 text-slate-gray hover:text-pale-silver hover:border-slate-gray/40'}"
-		title="Deep Research Mode (Web Access)"
-		aria-label="Deep Research Mode (Web Access)"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke-width="2"
-			stroke="currentColor"
-			class="w-5 h-5"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-.778.099-1.533.284-2.253"
-			/>
-		</svg>
-		<span
-			class="absolute bottom-full mb-2 hidden group-hover:block bg-deep-navy border border-slate-gray/30 text-soft-white text-xs py-1 px-2 rounded whitespace-nowrap z-50 pointer-events-none transition-all duration-300"
-		>
-			Deep Research Mode (Web Access): {chatStore.isWebSearchEnabled ? 'ON' : 'OFF'}
-		</span>
-	</button>
-
-	<!-- Submit button -->
-	<button
-		type="button"
-		onclick={handleSend}
-		disabled={!textValue.trim() || isThinking}
-		class="flex items-center justify-center w-10 h-10 rounded-full bg-violet-glow text-deep-navy hover:bg-violet-glow/90 disabled:bg-soft-dark-blue disabled:text-slate-gray disabled:border disabled:border-slate-gray/15 transition-all duration-300 cursor-pointer"
-		title="Send message"
-	>
-		{#if isThinking}
-			<!-- Spinner -->
-			<svg class="animate-spin h-5 w-5 text-current" fill="none" viewBox="0 0 24 24">
-				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-				></circle>
-				<path
-					class="opacity-75"
-					fill="currentColor"
-					d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-				></path>
-			</svg>
-		{:else}
-			<!-- Send Icon -->
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="2.5"
-				stroke="currentColor"
-				class="w-5 h-5 translate-x-[1px] -translate-y-[1px]"
+			<p
+				class="flex items-center gap-2 {voiceStore.isListening
+					? 'text-cyan-glow'
+					: 'text-slate-gray'}"
 			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
-				/>
-			</svg>
-		{/if}
-	</button>
-</div>
+				<Sparkles size={14} aria-hidden="true" />
+				{voiceStore.isPreparingSpeech
+					? 'MOONDAY is preparing your voice…'
+					: voiceStore.isTranscribing
+						? 'Transcribing your recording…'
+						: voiceStore.isListening
+							? voiceStore.recognitionState === 'starting'
+								? 'Starting microphone…'
+								: 'Listening… tap the microphone when you are done.'
+							: 'Transcript ready to review.'}
+			</p>
+			{#if voiceStore.transcript.trim() && !voiceStore.isListening}
+				<button
+					type="button"
+					onclick={discardTranscript}
+					class="text-slate-gray hover:text-pale-silver"
+				>
+					Discard
+				</button>
+			{/if}
+		</div>
+	{/if}
 
-{#if voiceStore.isListening || voiceStore.isTranscribing || voiceStore.transcript.trim()}
-	<div class="mt-2 flex items-center justify-between gap-3 px-2 text-xs" aria-live="polite">
-		<p class={voiceStore.isListening ? 'text-cyan-glow' : 'text-slate-gray'}>
-			{voiceStore.isTranscribing
-				? 'Transcribing your recording…'
-				: voiceStore.isListening
-				? voiceStore.recognitionState === 'starting'
-					? 'Starting microphone…'
-					: 'Listening… your words stay editable before sending.'
-				: 'Transcript ready to review.'}
-		</p>
-		{#if voiceStore.transcript.trim() && !voiceStore.isListening}
+	<div class="flex items-end gap-1.5">
+		<div class="flex shrink-0 items-center gap-1">
+			<VoiceButton onTranscript={handleTranscript} />
 			<button
 				type="button"
-				onclick={discardTranscript}
-				class="rounded-md px-2 py-1 text-slate-gray hover:text-pale-silver"
+				onclick={() => (contextMenuOpen = !contextMenuOpen)}
+				class="composer-icon"
+				title="Add an image, link, or shared context"
+				aria-label="Add an image, link, or shared context"
+				aria-expanded={contextMenuOpen}
 			>
-				Discard
+				<Paperclip size={19} aria-hidden="true" />
 			</button>
-		{/if}
-	</div>
-{/if}
+		</div>
 
-{#if voiceStore.isPreparingSpeech}
-	<div class="mt-2 px-2 text-xs text-cyan-glow" aria-live="polite">
-		MOONDAY is preparing your local voice…
-	</div>
-{/if}
+		<textarea
+			bind:value={textValue}
+			onkeydown={handleKeyDown}
+			placeholder={voiceStore.isListening ? 'Listening…' : 'Share a thought…'}
+			disabled={isThinking}
+			rows="1"
+			class="max-h-36 min-h-11 flex-1 resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-base leading-6 text-soft-white outline-none placeholder:text-slate-gray disabled:opacity-50"
+		></textarea>
 
-{#if voiceStore.errorMessage}
-	<div class="mt-2 flex items-center justify-between gap-3 px-2 text-xs text-soft-red" role="alert">
-		<span>{voiceStore.errorMessage}</span>
-		<button type="button" onclick={() => (voiceStore.errorMessage = null)} class="shrink-0 rounded px-1 text-slate-gray hover:text-pale-silver" aria-label="Dismiss voice error">×</button>
+		<div class="flex shrink-0 items-center gap-1">
+			<button
+				type="button"
+				onclick={onToggleDoNotRemember}
+				class="composer-icon {doNotRemember ? 'active-private' : ''}"
+				title={doNotRemember
+					? 'Memory suggestions disabled for this message'
+					: 'Do not remember this message'}
+				aria-label={doNotRemember
+					? 'Allow memory suggestions for this message'
+					: 'Do not remember this message'}
+				aria-pressed={doNotRemember}
+			>
+				<BrainCircuit size={18} aria-hidden="true" />
+			</button>
+			<button
+				type="button"
+				onclick={() => chatStore.toggleWebSearch()}
+				class="composer-icon {chatStore.isWebSearchEnabled ? 'active-research' : ''}"
+				title={chatStore.isWebSearchEnabled ? 'Web research enabled' : 'Enable web research'}
+				aria-label={chatStore.isWebSearchEnabled ? 'Disable web research' : 'Enable web research'}
+				aria-pressed={chatStore.isWebSearchEnabled}
+			>
+				<Globe2 size={19} aria-hidden="true" />
+			</button>
+			<button
+				type="button"
+				onclick={handleSend}
+				disabled={!textValue.trim() || isThinking}
+				class="flex h-10 w-10 items-center justify-center rounded-full bg-violet-glow text-deep-navy transition-colors hover:bg-violet-glow/90 disabled:bg-deep-navy/50 disabled:text-slate-gray"
+				title="Send message"
+				aria-label="Send message"
+			>
+				{#if isThinking}
+					<LoaderCircle size={19} class="animate-spin" aria-hidden="true" />
+				{:else}
+					<Send size={19} aria-hidden="true" />
+				{/if}
+			</button>
+		</div>
 	</div>
-{/if}
+
+	{#if contextMenuOpen}
+		<div
+			class="absolute bottom-[calc(100%-0.25rem)] left-10 z-40 grid min-w-48 gap-1 rounded-2xl border border-white/10 bg-soft-dark-blue p-1.5 text-xs shadow-2xl"
+			role="menu"
+			aria-label="Add context"
+		>
+			<button
+				type="button"
+				role="menuitem"
+				onclick={() => {
+					contextMenuOpen = false;
+					onAddContext?.();
+				}}
+				class="rounded-xl px-3 py-2.5 text-left text-pale-silver hover:bg-white/6"
+			>
+				Add image or link
+			</button>
+			<button
+				type="button"
+				role="menuitem"
+				onclick={() => {
+					contextMenuOpen = false;
+					onAddCoViewer?.();
+				}}
+				class="rounded-xl px-3 py-2.5 text-left text-pale-silver hover:bg-white/6"
+			>
+				Bring something you saw
+			</button>
+		</div>
+	{/if}
+
+	{#if voiceStore.errorMessage}
+		<div
+			class="mt-2 flex items-center justify-between gap-3 px-3 text-xs text-soft-red"
+			role="alert"
+		>
+			<span>{voiceStore.errorMessage}</span>
+			<button
+				type="button"
+				onclick={() => (voiceStore.errorMessage = null)}
+				class="text-slate-gray hover:text-pale-silver"
+				aria-label="Dismiss voice error"
+			>
+				<X size={15} aria-hidden="true" />
+			</button>
+		</div>
+	{/if}
+</div>
+
+<style>
+	.composer-icon {
+		display: inline-flex;
+		width: 2.5rem;
+		height: 2.5rem;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		color: var(--color-slate-gray);
+		transition:
+			color 160ms ease,
+			background-color 160ms ease;
+	}
+
+	.composer-icon:hover {
+		background: rgb(255 255 255 / 0.06);
+		color: var(--color-pale-silver);
+	}
+
+	.active-private {
+		background: rgb(34 211 238 / 0.12);
+		color: var(--color-cyan-glow);
+	}
+
+	.active-research {
+		background: rgb(167 139 250 / 0.15);
+		color: var(--color-violet-glow);
+	}
+</style>

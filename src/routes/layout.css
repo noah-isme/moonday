@@ -1,14 +1,14 @@
 @import 'tailwindcss';
 
 @theme {
-	--color-deep-navy: #0a0e17;
-	--color-soft-dark-blue: #141b2b;
+	--color-deep-navy: #0b1020;
+	--color-soft-dark-blue: #151d31;
 	--color-moon-yellow: #fef08a;
-	--color-pale-silver: #cbd5e1;
+	--color-pale-silver: #d7deeb;
 	--color-violet-glow: #a78bfa;
 	--color-cyan-glow: #22d3ee;
 	--color-soft-white: #f8fafc;
-	--color-slate-gray: #94a3b8;
+	--color-slate-gray: #aebbd0;
 	--color-soft-red: #f87171;
 	--color-calm-green: #34d399;
 
@@ -73,6 +73,19 @@
 		overflow-x: hidden;
 	}
 
+	button,
+	a,
+	select,
+	textarea,
+	input {
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	:where(button, a, select, textarea, input):focus-visible {
+		outline: 2px solid var(--color-violet-glow);
+		outline-offset: 2px;
+	}
+
 	/* Custom scrollbar */
 	::-webkit-scrollbar {
 		width: 6px;
@@ -87,5 +100,16 @@
 	}
 	::-webkit-scrollbar-thumb:hover {
 		background: var(--color-slate-gray);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
 	}
 }

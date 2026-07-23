@@ -7,6 +7,21 @@
 	import { fade } from 'svelte/transition';
 	import { marked } from 'marked';
 	import { RESPONSE_FEEDBACK_LABELS, type ResponseFeedbackType } from '$lib/types/feedback';
+	import AvatarMoon from './AvatarMoon.svelte';
+	import MoodIcon from './MoodIcon.svelte';
+	import {
+		Bookmark,
+		ChevronDown,
+		GitBranch,
+		MoreHorizontal,
+		Pencil,
+		RefreshCw,
+		SlidersHorizontal,
+		ThumbsDown,
+		ThumbsUp,
+		Volume2,
+		VolumeX
+	} from 'lucide-svelte';
 
 	let {
 		message,
@@ -22,6 +37,23 @@
 	let editedContent = $state('');
 	let feedbackOpen = $state(false);
 	let feedbackSaved = $state<string | null>(null);
+	let adjustMenuOpen = $state(false);
+	let moreMenuOpen = $state(false);
+
+	const responseAdjustments = [
+		['Shorter', 'Please make your previous response shorter and clearer.'],
+		[
+			'Warmer',
+			'Please make your previous response warmer and more reassuring, without becoming dramatic.'
+		],
+		[
+			'Funnier',
+			'Please make your previous response a little funnier and lightly witty, never mean.'
+		],
+		['More direct', 'Please make your previous response more direct and concise.'],
+		['More practical', 'Please turn your previous response into practical next steps.'],
+		['Go deeper', 'Please go deeper on your previous response.']
+	] as const;
 
 	async function submitFeedback(type: ResponseFeedbackType) {
 		if (!message.persisted) return;
@@ -71,12 +103,12 @@
 				hour: '2-digit',
 				minute: '2-digit'
 			});
-		} catch (e) {
+		} catch {
 			return '';
 		}
 	});
 
-	// Find mood emoji and colors if assistant message has an emotion label
+	// Find the semantic mood icon and colors if an assistant message has an emotion label.
 	const emotionDetails = $derived.by(() => {
 		if (message.role !== 'assistant' || !message.emotionLabel) return null;
 		return MOODS.find((m) => m.label === message.emotionLabel) || null;
@@ -87,8 +119,7 @@
 		if (message.role === 'assistant') {
 			try {
 				return marked.parse(message.content) as string;
-			} catch (e) {
-				console.error('Failed to parse markdown:', e);
+			} catch {
 				return message.content;
 			}
 		}
@@ -97,80 +128,79 @@
 </script>
 
 {#if message.role === 'system'}
-	<!-- System notification message -->
-	<div transition:fade={{ duration: 150 }} class="flex justify-center my-3">
-		<span
-			class="px-3 py-1 text-xs text-slate-gray bg-soft-dark-blue/50 rounded-full border border-slate-gray/10 select-none"
-		>
+	<div transition:fade={{ duration: 150 }} class="my-3 flex justify-center">
+		<span class="rounded-full bg-soft-dark-blue/55 px-3 py-1.5 text-xs text-slate-gray">
 			{message.content}
 		</span>
 	</div>
 {:else}
-	<!-- User or Assistant chat bubbles -->
 	<div
 		transition:fade={{ duration: 200 }}
-		class="flex w-full my-4 flex-col {message.role === 'user' ? 'items-end' : 'items-start'}"
+		class="my-5 flex w-full {message.role === 'user' ? 'justify-end' : 'justify-start'}"
 	>
-		<!-- Bubble wrapper -->
-		<div class="max-w-[80%] md:max-w-[70%] flex flex-col gap-1">
-			<!-- Sender Name & Metadata -->
-			<div
-				class="flex items-center gap-2 px-1 text-xs text-slate-gray select-none {message.role ===
-				'user'
-					? 'justify-end'
-					: 'justify-start'}"
-			>
-				<span class="font-medium text-pale-silver"
-					>{message.role === 'user' ? 'You' : characterName}</span
-				>
-				<span>•</span>
-				<span>{formattedTime}</span>
-			</div>
-
-			<!-- Shimmering status -->
-			{#if message.role === 'assistant' && message.status}
-				<div
-					class="px-1 py-0.5 text-xs flex items-center gap-1.5 select-none font-medium italic animate-pulse"
-				>
-					<span
-						class="inline-block w-1.5 h-1.5 rounded-full bg-violet-glow shadow-[0_0_8px_#c084fc] animate-ping"
-					></span>
-					<span class="text-violet-glow/90">{message.status}</span>
+		<div
+			class="flex w-full items-start gap-3 {message.role === 'user'
+				? 'max-w-[85%] flex-row-reverse md:max-w-[72%]'
+				: 'max-w-[92%] md:max-w-[78%] xl:max-w-[72%]'}"
+		>
+			{#if message.role === 'assistant'}
+				<div class="mt-5 h-8 w-8 shrink-0">
+					<AvatarMoon />
 				</div>
 			{/if}
 
-			<!-- Main Bubble Body -->
-			<div
-				class="px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all duration-300 shadow-lg {message.role ===
-				'user'
-					? 'bg-violet-glow text-deep-navy font-medium rounded-tr-none'
-					: 'bg-soft-dark-blue text-soft-white border border-slate-gray/10 rounded-tl-none'} {isLastAssistant &&
-				(chatStore.isThinking || chatStore.isStreaming)
-					? 'animate-pulse opacity-80'
-					: ''}"
-			>
-				{#if message.role === 'assistant'}
-					<div class="markdown-content">
-						{@html parsedContent}
+			<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+				<div
+					class="flex items-center gap-2 px-1 text-xs text-slate-gray {message.role === 'user'
+						? 'justify-end'
+						: 'justify-start'}"
+				>
+					<span class="font-medium text-pale-silver">
+						{message.role === 'user' ? 'You' : characterName}
+					</span>
+					<span aria-hidden="true">·</span>
+					<time>{formattedTime}</time>
+				</div>
+
+				{#if message.role === 'assistant' && message.status}
+					<div
+						class="flex items-center gap-2 px-1 text-xs font-medium text-violet-glow"
+						aria-live="polite"
+					>
+						<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-glow"></span>
+						<span>{message.status.replace(/^[\p{Extended_Pictographic}\s]+/u, '')}</span>
 					</div>
-				{:else}
-					{#if isEditing}
-						<div class="flex flex-col gap-2 w-full min-w-[200px] md:min-w-[300px]">
+				{/if}
+
+				<div
+					class="rounded-3xl px-5 py-4 text-base leading-[1.65] transition-all duration-300 {message.role ===
+					'user'
+						? 'rounded-tr-lg bg-violet-glow text-deep-navy font-medium shadow-[0_10px_30px_rgba(167,139,250,0.12)]'
+						: 'rounded-tl-lg border border-white/7 bg-[#1b263d] text-soft-white shadow-[0_14px_36px_rgba(0,0,0,0.14)]'} {isLastAssistant &&
+					(chatStore.isThinking || chatStore.isStreaming)
+						? 'opacity-80'
+						: ''}"
+				>
+					{#if message.role === 'assistant'}
+						<div class="markdown-content">
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+							{@html parsedContent}
+						</div>
+					{:else if isEditing}
+						<div class="flex min-w-[200px] flex-col gap-3 md:min-w-[300px]">
 							<textarea
 								bind:value={editedContent}
-								class="w-full p-2 text-sm text-deep-navy bg-white/40 rounded-md border border-deep-navy/20 focus:outline-none focus:border-deep-navy/50 resize-y"
-								rows="3"></textarea>
+								class="w-full resize-y rounded-xl border border-deep-navy/20 bg-white/45 p-2 text-base text-deep-navy outline-none"
+								rows="3"
+								aria-label="Edit message"></textarea>
 							<div class="flex justify-end gap-2 text-xs">
-								<button
-									onclick={cancelEditing}
-									class="px-2 py-1 rounded bg-deep-navy/10 text-deep-navy hover:bg-deep-navy/20 transition-colors font-medium"
-								>
+								<button onclick={cancelEditing} class="rounded-lg px-3 py-1.5 text-deep-navy">
 									Cancel
 								</button>
 								<button
 									onclick={saveEdit}
 									disabled={!editedContent.trim()}
-									class="px-2 py-1 rounded bg-deep-navy text-violet-glow hover:bg-deep-navy/90 transition-colors font-medium disabled:opacity-50"
+									class="rounded-lg bg-deep-navy px-3 py-1.5 font-medium text-violet-glow disabled:opacity-50"
 								>
 									Save
 								</button>
@@ -179,121 +209,236 @@
 					{:else}
 						<p class="whitespace-pre-wrap">{message.content}</p>
 					{/if}
-				{/if}
-			</div>
-
-			<!-- Emotion / Mood Feedback Badge and Reroll Button for Assistant Replies -->
-			{#if emotionDetails || (message.role === 'assistant' && isLastAssistant)}
-				<div class="flex px-1 mt-1 justify-start items-center gap-2">
-					{#if emotionDetails}
-						<span
-							class="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full border border-current font-medium transition-all duration-300 {emotionDetails.color} opacity-80"
-							title="Mood classification score: {message.moodScore}"
-						>
-							<span>{emotionDetails.emoji}</span>
-							<span class="capitalize">{emotionDetails.label}</span>
-						</span>
-					{/if}
-
-					{#if message.role === 'assistant' && isLastAssistant}
-						<button
-							onclick={() => chatStore.rerollLastMessage()}
-							disabled={chatStore.isStreaming || chatStore.isThinking || chatStore.isRerolling}
-							class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-gray/15 text-xs font-medium text-pale-silver hover:border-violet-glow/50 hover:bg-violet-glow/10 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
-							title="Generate another response"
-							aria-label="Regenerate response"
-						>
-							<svg
-								class="w-3.5 h-3.5 {chatStore.isThinking ||
-								chatStore.isStreaming ||
-								chatStore.isRerolling
-									? 'animate-spin'
-									: ''}"
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="2"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-								/>
-							</svg>
-							<span>{chatStore.isRerolling ? 'Regenerating…' : 'Regenerate'}</span>
-						</button>
-					{/if}
 				</div>
-			{/if}
 
-			{#if message.role === 'assistant' && isLastAssistant && message.content}
-				<div class="flex flex-wrap gap-1.5 px-1 mt-1">
-					{#each [['Shorter', 'Please make your previous response shorter and clearer.'], ['Warmer', 'Please make your previous response warmer and more reassuring, without becoming dramatic.'], ['Funnier', 'Please make your previous response a little funnier and lightly witty, never mean.'], ['More direct', 'Please make your previous response more direct and concise.'], ['More practical', 'Please turn your previous response into practical next steps.'], ['Go deeper', 'Please go deeper on your previous response.']] as action}
+				{#if emotionDetails}
+					<span
+						class="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border border-current/30 px-2.5 py-1 text-xs font-medium capitalize {emotionDetails.color}"
+						title="Possible reflected mood"
+					>
+						<MoodIcon name={emotionDetails.icon} size={14} />
+						{emotionDetails.label}
+					</span>
+				{/if}
+
+				{#if message.role === 'assistant' && isLastAssistant && message.content}
+					<div class="mt-1 flex flex-wrap items-center gap-1.5 px-1">
 						<button
 							type="button"
-							onclick={() => chatStore.sendMessage(action[1])}
-							disabled={chatStore.isThinking || chatStore.isStreaming}
-							class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver disabled:opacity-50"
-							>{action[0]}</button
+							onclick={() => chatStore.rerollLastMessage()}
+							disabled={chatStore.isStreaming || chatStore.isThinking || chatStore.isRerolling}
+							class="message-action"
+							title="Generate another response"
 						>
-					{/each}
-					<button
-						type="button"
-							onclick={() =>
-								voiceStore.isSpeaking || voiceStore.isPreparingSpeech
-									? voiceStore.stopSpeaking()
-									: voiceStore.speak(message.content)}
-						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
-						>{voiceStore.isSpeaking || voiceStore.isPreparingSpeech ? 'Stop speaking' : 'Speak'}</button
-					>
-					<button
-						type="button"
-						onclick={saveReflection}
-						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
-						>Save reflection</button
-					>
-					<button
-						type="button"
-						onclick={() => chatStore.branchConversation(message.id)}
-						class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver"
-						>Branch here</button
-					>
-					{#if feedbackSaved}
-						<span class="self-center text-[10px] text-cyan-glow">Thanks — {feedbackSaved}, kept private.</span>
-					{:else if message.persisted}
-						<button type="button" onclick={() => submitFeedback('helpful')} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-cyan-glow/40 hover:text-cyan-glow">Helpful</button>
-						<button type="button" onclick={() => (feedbackOpen = !feedbackOpen)} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-violet-glow/40 hover:text-pale-silver">Needs work</button>
+							<RefreshCw
+								size={15}
+								class={chatStore.isRerolling ? 'animate-spin' : ''}
+								aria-hidden="true"
+							/>
+							<span>{chatStore.isRerolling ? 'Regenerating…' : 'Regenerate'}</span>
+						</button>
+						<button type="button" onclick={saveReflection} class="message-action">
+							<Bookmark size={15} aria-hidden="true" />
+							<span>Save</span>
+						</button>
+						{#if feedbackSaved}
+							<span class="px-2 text-xs text-cyan-glow">Thanks — {feedbackSaved}.</span>
+						{:else if message.persisted}
+							<button
+								type="button"
+								onclick={() => submitFeedback('helpful')}
+								class="message-action"
+							>
+								<ThumbsUp size={15} aria-hidden="true" />
+								<span>Helpful</span>
+							</button>
+						{/if}
+
+						<div class="relative">
+							<button
+								type="button"
+								onclick={() => {
+									adjustMenuOpen = !adjustMenuOpen;
+									moreMenuOpen = false;
+								}}
+								class="message-action"
+								aria-expanded={adjustMenuOpen}
+							>
+								<SlidersHorizontal size={15} aria-hidden="true" />
+								<span>Adjust response</span>
+								<ChevronDown size={13} aria-hidden="true" />
+							</button>
+							{#if adjustMenuOpen}
+								<div class="message-menu left-0" role="menu" aria-label="Adjust response">
+									{#each responseAdjustments as action (action[0])}
+										<button
+											type="button"
+											role="menuitem"
+											onclick={() => {
+												adjustMenuOpen = false;
+												chatStore.sendMessage(action[1]);
+											}}
+											disabled={chatStore.isThinking || chatStore.isStreaming}
+										>
+											{action[0]}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+
+						<div class="relative">
+							<button
+								type="button"
+								onclick={() => {
+									moreMenuOpen = !moreMenuOpen;
+									adjustMenuOpen = false;
+								}}
+								class="icon-button h-8 w-8 text-slate-gray"
+								title="More response actions"
+								aria-label="More response actions"
+								aria-expanded={moreMenuOpen}
+							>
+								<MoreHorizontal size={17} aria-hidden="true" />
+							</button>
+							{#if moreMenuOpen}
+								<div class="message-menu right-0" role="menu" aria-label="More response actions">
+									<button
+										type="button"
+										role="menuitem"
+										onclick={() =>
+											voiceStore.isSpeaking || voiceStore.isPreparingSpeech
+												? voiceStore.stopSpeaking()
+												: voiceStore.speak(message.content)}
+									>
+										{#if voiceStore.isSpeaking || voiceStore.isPreparingSpeech}
+											<VolumeX size={15} aria-hidden="true" />
+											Stop speaking
+										{:else}
+											<Volume2 size={15} aria-hidden="true" />
+											Speak response
+										{/if}
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onclick={() => chatStore.branchConversation(message.id)}
+									>
+										<GitBranch size={15} aria-hidden="true" />
+										Branch here
+									</button>
+									{#if message.persisted}
+										<button
+											type="button"
+											role="menuitem"
+											onclick={() => {
+												feedbackOpen = !feedbackOpen;
+												moreMenuOpen = false;
+											}}
+										>
+											<ThumbsDown size={15} aria-hidden="true" />
+											Needs work
+										</button>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					{#if feedbackOpen && message.persisted}
+						<div class="mt-2 flex flex-wrap gap-2 px-1" aria-label="Response feedback">
+							{#each ['not_helpful', 'too_long', 'too_generic', 'too_much_humor', 'wrong_language'] as ResponseFeedbackType[] as type (type)}
+								<button
+									type="button"
+									onclick={() => submitFeedback(type)}
+									class="message-action text-soft-red"
+								>
+									{RESPONSE_FEEDBACK_LABELS[type]}
+								</button>
+							{/each}
+						</div>
 					{/if}
-				</div>
-				{#if feedbackOpen && message.persisted}
-					<div class="mt-2 flex flex-wrap gap-1.5 px-1">
-						{#each (['not_helpful', 'too_long', 'too_generic', 'too_much_humor', 'wrong_language'] as ResponseFeedbackType[]) as type}
-							<button type="button" onclick={() => submitFeedback(type)} class="rounded-md border border-slate-gray/15 px-2 py-1 text-[10px] text-slate-gray hover:border-soft-red/40 hover:text-pale-silver">{RESPONSE_FEEDBACK_LABELS[type]}</button>
-						{/each}
+				{/if}
+
+				{#if message.role === 'user' && message.persisted && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}
+					<div class="flex justify-end px-1">
+						<button
+							type="button"
+							onclick={startEditing}
+							class="icon-button h-8 w-8 text-slate-gray"
+							title="Edit message"
+							aria-label="Edit message"
+						>
+							<Pencil size={15} aria-hidden="true" />
+						</button>
 					</div>
 				{/if}
-			{/if}
-
-			{#if message.role === 'user' && message.persisted === true && !isEditing && !chatStore.isStreaming && !chatStore.isThinking}
-				<div class="flex px-1 mt-1 justify-end items-center gap-2">
-					<button
-						onclick={startEditing}
-						class="inline-flex items-center justify-center p-1 rounded-full text-slate-gray hover:text-pale-silver hover:bg-white/5 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-accent/50 text-xs"
-						title="Edit message"
-						aria-label="Edit message"
-					>
-						✏️
-					</button>
-				</div>
-			{/if}
+			</div>
 		</div>
 	</div>
 {/if}
 
 <style>
+	:global(.message-action) {
+		display: inline-flex;
+		min-height: 2rem;
+		align-items: center;
+		gap: 0.375rem;
+		border: 1px solid rgb(255 255 255 / 0.08);
+		border-radius: 0.625rem;
+		padding: 0.35rem 0.625rem;
+		color: var(--color-pale-silver);
+		font-size: 0.75rem;
+		font-weight: 600;
+		transition:
+			border-color 160ms ease,
+			background-color 160ms ease,
+			color 160ms ease;
+	}
+
+	:global(.message-action:hover) {
+		border-color: rgb(167 139 250 / 0.4);
+		background: rgb(167 139 250 / 0.08);
+		color: var(--color-soft-white);
+	}
+
+	:global(.message-action:disabled) {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	.message-menu {
+		position: absolute;
+		z-index: 40;
+		bottom: calc(100% + 0.5rem);
+		display: grid;
+		min-width: 11rem;
+		gap: 0.125rem;
+		border: 1px solid rgb(255 255 255 / 0.1);
+		border-radius: 0.875rem;
+		background: #151d31;
+		padding: 0.375rem;
+		box-shadow: 0 16px 40px rgb(0 0 0 / 0.35);
+	}
+
+	.message-menu button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border-radius: 0.625rem;
+		padding: 0.55rem 0.625rem;
+		color: var(--color-pale-silver);
+		font-size: 0.75rem;
+		text-align: left;
+	}
+
+	.message-menu button:hover {
+		background: rgb(255 255 255 / 0.06);
+		color: var(--color-soft-white);
+	}
+
 	:global(.markdown-content p) {
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 	:global(.markdown-content p:last-child) {
 		margin-bottom: 0;
@@ -309,7 +454,7 @@
 		margin-bottom: 0.5rem;
 	}
 	:global(.markdown-content li) {
-		margin-bottom: 0.125rem;
+		margin-bottom: 0.3rem;
 	}
 	:global(.markdown-content code) {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
