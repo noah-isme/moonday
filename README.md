@@ -6,6 +6,12 @@ MOONDAY is a private AI daily companion that helps you reflect, organize thought
 
 It can remember meaningful, user-approved context; support mood check-ins and daily reflections; adapt its communication style; and respond in the user’s language. Over time, MOONDAY is intended to become a thoughtful co-viewer too: a private space to bring a post, Reel, screenshot, or online moment for a reaction, a reality check, or a gentle joke.
 
+## Preview
+
+![MOONDAY full-dark companion chat interface](e2e/visual.spec.ts-snapshots/chat-page-chromium-linux.png)
+
+_A cinematic, full-dark reflection space with conversation history, companion context, mood-aware responses, and a focused composer._
+
 ## Guiding principles
 
 - **Personal continuity:** conversations, memories, and reflections should help MOONDAY understand the user’s ongoing day and goals.
