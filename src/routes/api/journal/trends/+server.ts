@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users, moodLogs } from '$lib/server/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 async function getOrCreateDefaultUser() {
 	let [user] = await db.select().from(users).limit(1);
@@ -25,9 +25,9 @@ export const GET: RequestHandler = async () => {
 			.select()
 			.from(moodLogs)
 			.where(eq(moodLogs.userId, user.id))
-			.orderBy(asc(moodLogs.createdAt)) // Chronological order enforced!
-			.limit(50);
-		return json(logs);
+			.orderBy(desc(moodLogs.createdAt))
+			.limit(200);
+		return json(logs.reverse());
 	} catch (error: unknown) {
 		console.error('Error in GET /api/journal/trends:', error);
 		return json(

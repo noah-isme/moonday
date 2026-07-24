@@ -25,13 +25,14 @@
 	}
 </script>
 
-<div
-	class="bg-soft-dark-blue p-6 rounded-3xl border border-slate-gray/10 shadow-xl max-w-xl mx-auto w-full"
->
+<div class="ambient-panel mx-auto w-full max-w-xl rounded-[2rem] p-6 shadow-xl">
 	<div class="text-center mb-6">
-		<h2 class="text-xl font-bold text-soft-white tracking-wide">How are you feeling right now?</h2>
-		<p class="text-xs text-slate-gray mt-1">
-			Start with a mood. Add detail only if it feels useful today.
+		<p class="eyebrow mb-2">Quick signal check</p>
+		<h2 class="font-display text-2xl font-bold tracking-tight text-soft-white">
+			What’s the vibe right now?
+		</h2>
+		<p class="mt-2 text-sm text-slate-gray">
+			Pick the closest answer. Your feelings are allowed to be annoyingly nuanced.
 		</p>
 	</div>
 
@@ -48,15 +49,15 @@
 						onclick={() => handleMoodSelect(mood.label)}
 						class="flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 cursor-pointer select-none {checkInState.moodLabel ===
 						mood.label
-							? 'border-violet-glow bg-violet-glow/10 scale-[1.03]'
-							: 'border-slate-gray/10 bg-deep-navy/40 hover:border-slate-gray/30 hover:scale-[1.02]'}"
+							? 'border-cyan-glow/55 bg-cyan-glow/12 scale-[1.03] shadow-[0_0_22px_rgba(103,230,210,0.08)]'
+							: 'border-cyan-glow/8 bg-deep-navy/40 hover:border-cyan-glow/25 hover:scale-[1.02]'}"
 					>
 						<span class="mb-2 text-current" aria-hidden="true">
 							<MoodIcon name={mood.icon} size={26} strokeWidth={1.7} />
 						</span>
 						<span
 							class="text-xs capitalize font-medium"
-							class:text-violet-glow={checkInState.moodLabel === mood.label}
+							class:text-cyan-glow={checkInState.moodLabel === mood.label}
 							class:text-pale-silver={checkInState.moodLabel !== mood.label}
 						>
 							{mood.label}
@@ -69,13 +70,13 @@
 		<button
 			type="button"
 			onclick={() => (showDetails = !showDetails)}
-			class="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-gray/10 bg-deep-navy/25 text-xs font-semibold text-pale-silver hover:border-violet-glow/35 transition-colors cursor-pointer"
+			class="dark-section flex w-full cursor-pointer items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold text-pale-silver transition-colors hover:border-cyan-glow/30"
 			aria-expanded={showDetails}
 		>
 			<span>{showDetails ? 'Hide optional details' : 'Add energy, stress, or a note'}</span>
 			<ChevronDown
 				size={17}
-				class="text-violet-glow transition-transform {showDetails ? 'rotate-180' : ''}"
+				class="text-cyan-glow transition-transform {showDetails ? 'rotate-180' : ''}"
 				aria-hidden="true"
 			/>
 		</button>
@@ -138,7 +139,7 @@
 					bind:value={moodStore.currentCheckIn.note}
 					placeholder="Write a brief note about what is on your mind..."
 					rows="3"
-					class="w-full p-3 text-sm rounded-xl bg-deep-navy border border-slate-gray/10 text-soft-white placeholder-slate-gray outline-none focus:border-violet-glow/30 transition-all duration-300"
+					class="w-full p-3 text-sm rounded-xl bg-deep-navy border border-slate-gray/10 text-soft-white placeholder-slate-gray outline-none focus:border-cyan-glow/35 transition-all duration-300"
 				></textarea>
 			</div>
 		{/if}
@@ -146,9 +147,9 @@
 		<!-- Submit Button -->
 		<button
 			type="submit"
-			class="w-full py-3 px-4 rounded-xl bg-violet-glow text-deep-navy font-semibold hover:bg-violet-glow/90 shadow-lg shadow-violet-glow/10 active:scale-[0.98] transition-all duration-300 cursor-pointer"
+			class="primary-action w-full cursor-pointer rounded-xl px-4 py-3 font-bold active:scale-[0.98]"
 		>
-			Save Mood Reflection
+			Log this mood
 		</button>
 	</form>
 </div>

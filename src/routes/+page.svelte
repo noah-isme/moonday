@@ -32,11 +32,17 @@
 
 <div class="space-y-8 flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full py-4">
 	<!-- Top Hero Branding -->
-	<div class="text-center space-y-3">
-		<h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-soft-white select-none">
-			Welcome to <span class="text-moon-yellow">MOONDAY</span>
+	<div class="space-y-4 text-center">
+		<p class="eyebrow">Your emotional co-pilot is online</p>
+		<h1
+			class="font-display text-4xl font-extrabold tracking-[-0.04em] text-soft-white select-none md:text-5xl"
+		>
+			Hey. How’s your <span
+				class="bg-gradient-to-r from-cyan-glow to-violet-glow bg-clip-text text-transparent"
+				>inner weather?</span
+			>
 		</h1>
-		<p class="text-sm text-slate-gray max-w-md mx-auto">
+		<p class="mx-auto max-w-lg text-base leading-relaxed text-slate-gray">
 			{greetingMessage}
 		</p>
 	</div>
@@ -50,20 +56,16 @@
 	{:else}
 		<!-- Show checked in summary if checked in -->
 		<div
-			class="bg-soft-dark-blue border border-slate-gray/10 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl text-center max-w-xl mx-auto w-full animate-[fadeIn_0.5s_ease-out]"
+			class="ambient-panel mx-auto w-full max-w-xl animate-[fadeIn_0.5s_ease-out] space-y-6 rounded-[2rem] p-6 text-center shadow-xl md:p-8"
 		>
 			<div class="space-y-2">
-				<span class="text-xs font-semibold text-slate-gray uppercase tracking-wider block"
-					>Today's Reflection</span
-				>
-				<h2 class="text-2xl font-bold text-soft-white">Check-in Complete</h2>
+				<span class="eyebrow block">Today's reflection</span>
+				<h2 class="font-display text-2xl font-bold text-soft-white">You checked in. Nice.</h2>
 			</div>
 
 			<!-- Large Mood Visual -->
 			{#if todayLog && todayMoodDetails}
-				<div
-					class="flex flex-col items-center justify-center p-6 bg-deep-navy/40 rounded-2xl border border-slate-gray/5"
-				>
+				<div class="dark-section flex flex-col items-center justify-center rounded-2xl p-6">
 					<span class="mb-3 text-violet-glow" aria-hidden="true">
 						<MoodIcon name={todayMoodDetails.icon} size={48} strokeWidth={1.4} />
 					</span>
@@ -104,7 +106,7 @@
 			<div class="grid grid-cols-2 gap-3 pt-2">
 				<a
 					href={resolveRoute('/chat')}
-					class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-violet-glow text-deep-navy font-semibold text-sm hover:bg-violet-glow/90 shadow-md transition-all duration-300"
+					class="primary-action flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold"
 				>
 					<MessageCircle size={17} aria-hidden="true" />
 					<span>Open Reflections</span>

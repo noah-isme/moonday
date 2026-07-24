@@ -135,9 +135,12 @@
 	<!-- Page Header -->
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="space-y-2">
-			<h1 class="text-2xl font-extrabold text-soft-white tracking-tight">Saved Memories</h1>
-			<p class="text-xs text-slate-gray">
-				View, edit, and delete details MOONDAY has remembered about you from reflections.
+			<p class="eyebrow">Your constellation</p>
+			<h1 class="font-display text-3xl font-extrabold tracking-tight text-soft-white">
+				Things worth remembering
+			</h1>
+			<p class="text-sm text-slate-gray">
+				The useful details you chose to keep — editable, private, and never set in stone.
 			</p>
 		</div>
 		{#if memoryStore.list.length > 0}
@@ -152,9 +155,7 @@
 	</div>
 
 	<!-- Filter and Search Toolbar -->
-	<div
-		class="bg-soft-dark-blue border border-slate-gray/10 rounded-3xl p-5 md:p-6 shadow-xl space-y-4"
-	>
+	<div class="ambient-panel space-y-4 rounded-3xl p-5 shadow-xl md:p-6">
 		<div class="flex flex-col md:flex-row gap-4 items-center justify-between">
 			<!-- Search Bar -->
 			<div class="w-full md:flex-1 relative">
@@ -218,7 +219,7 @@
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 		{#each filteredMemories as memory (memory.id)}
 			<div
-				class="bg-soft-dark-blue border border-slate-gray/10 rounded-3xl p-5 md:p-6 space-y-3 relative hover:border-slate-gray/25 transition-colors duration-300"
+				class="cinematic-card relative space-y-3 rounded-3xl p-5 transition-colors duration-300 hover:border-cyan-glow/20 md:p-6"
 			>
 				{#if editingId === memory.id}
 					<!-- Editing state Card Form -->
@@ -289,7 +290,7 @@
 							</button>
 							<button
 								onclick={() => saveEdit(memory.id)}
-								class="py-1.5 px-4 rounded-lg bg-violet-glow text-deep-navy hover:bg-violet-glow/90 text-xs font-bold cursor-pointer"
+								class="primary-action cursor-pointer rounded-lg px-4 py-1.5 text-xs font-bold"
 							>
 								Save changes
 							</button>
@@ -350,7 +351,7 @@
 					</div>
 
 					<h2 class="text-sm font-bold text-soft-white pr-10">{memory.title}</h2>
-					<p class="text-xs text-pale-silver leading-relaxed line-clamp-4">{memory.content}</p>
+					<p class="line-clamp-4 text-sm leading-relaxed text-pale-silver">{memory.content}</p>
 
 					<!-- Confidence signals -->
 					<div

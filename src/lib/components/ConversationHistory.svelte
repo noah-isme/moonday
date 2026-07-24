@@ -44,17 +44,19 @@
 	}
 </script>
 
-<div class="flex h-full min-h-0 flex-col bg-soft-dark-blue/45 p-4">
+<div
+	class="flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgba(16,42,40,0.72),rgba(6,23,22,0.45))] p-4"
+>
 	<div class="mb-4 flex items-center justify-between gap-3">
 		<div>
-			<p class="text-sm font-semibold text-soft-white">Recent conversations</p>
-			<p class="mt-0.5 text-xs text-slate-gray">Your latest moments with MOONDAY</p>
+			<p class="font-display text-sm font-semibold text-soft-white">Recent moments</p>
+			<p class="mt-0.5 text-xs text-slate-gray">The thoughts we left open</p>
 		</div>
 		<div class="flex items-center gap-1">
 			<button
 				type="button"
 				onclick={createConversation}
-				class="icon-button text-violet-glow"
+				class="icon-button text-cyan-glow"
 				title="Start a new conversation"
 				aria-label="Start a new conversation"
 			>
@@ -79,8 +81,8 @@
 			{@const isActive = chatStore.activeId === conversation.id}
 			<article
 				class="group relative rounded-2xl border p-3 transition-colors {isActive
-					? 'border-violet-glow/45 bg-violet-glow/12 shadow-[inset_3px_0_0_#a78bfa]'
-					: 'border-transparent bg-deep-navy/20 hover:border-white/8 hover:bg-deep-navy/40'}"
+					? 'border-cyan-glow/35 bg-cyan-glow/10 shadow-[inset_3px_0_0_#67e6d2,0_0_22px_rgba(103,230,210,0.06)]'
+					: 'border-transparent bg-deep-navy/20 hover:border-cyan-glow/12 hover:bg-deep-navy/40'}"
 				aria-current={isActive ? 'page' : undefined}
 			>
 				{#if renameId === conversation.id}
@@ -90,7 +92,7 @@
 						onblur={saveRename}
 						onkeydown={handleRenameKeyDown}
 						aria-label="Conversation title"
-						class="w-full rounded-lg border border-violet-glow/40 bg-deep-navy px-2 py-1.5 text-sm text-soft-white outline-none"
+						class="w-full rounded-lg border border-cyan-glow/40 bg-deep-navy px-2 py-1.5 text-sm text-soft-white outline-none"
 					/>
 				{:else}
 					<button

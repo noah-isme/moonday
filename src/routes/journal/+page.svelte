@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { moodStore } from '$lib/stores/mood.svelte';
+	import { buildTrendSeries, type TrendRange } from '$lib/journal/trends';
 	import { onMount } from 'svelte';
 	import { Lightbulb } from 'lucide-svelte';
 
@@ -40,6 +41,13 @@
 	let weeklyLoading = $state(false);
 	let correction = $state('');
 	let showCorrection = $state(false);
+	let trendRange = $state<TrendRange>('week');
+
+	const trendRanges: Array<{ value: TrendRange; label: string }> = [
+		{ value: 'day', label: 'Day' },
+		{ value: 'week', label: 'Week' },
+		{ value: 'month', label: 'Month' }
+	];
 
 	onMount(async () => {
 		try {
@@ -94,20 +102,16 @@
 		});
 	}
 
-	// Prepare data for the SVG mood trend chart
-	let chartLogs = $derived.by(() => {
-		// Use trendsData if loaded, otherwise fallback to moodStore.logs
-		const rawLogs = trendsData.length > 0 ? trendsData : moodStore.logs;
-
-		// Sort chronologically using Date timestamp comparison (O(n log n))
-		const sorted = [...rawLogs].sort((a, b) => {
-			const aVal = 'createdAt' in a && a.createdAt ? a.createdAt : 'date' in a ? a.date : 0;
-			const bVal = 'createdAt' in b && b.createdAt ? b.createdAt : 'date' in b ? b.date : 0;
-			return new Date(aVal).getTime() - new Date(bVal).getTime();
-		});
-
-		// Take the last 7 check-ins
-		return sorted.slice(-7);
+	let trendSource = $derived(trendsData.length > 0 ? trendsData : moodStore.logs);
+	let trendSeries = $derived.by(() => buildTrendSeries(trendSource, trendRange));
+	let trendDescription = $derived.by(() => {
+		if (trendRange === 'day') {
+			return `${trendSeries.length} individual check-in${trendSeries.length === 1 ? '' : 's'} today`;
+		}
+		if (trendRange === 'week') {
+			return `${trendSeries.length} logged day${trendSeries.length === 1 ? '' : 's'} this week · daily average`;
+		}
+		return `${trendSeries.length} logged week${trendSeries.length === 1 ? '' : 's'} this month · weekly average`;
 	});
 
 	// SVG Chart sizing parameters
@@ -117,47 +121,32 @@
 
 	// Scale points helper
 	let chartPoints = $derived.by(() => {
-		if (chartLogs.length === 0) return [];
+		if (trendSeries.length === 0) return [];
 
-		const xStep = (width - padding * 2) / Math.max(1, chartLogs.length - 1);
+		const xStep = (width - padding * 2) / Math.max(1, trendSeries.length - 1);
 
-		return chartLogs.map((log, index) => {
-			const x = padding + index * xStep;
+		return trendSeries.map((point, index) => {
+			const x = trendSeries.length === 1 ? width / 2 : padding + index * xStep;
 			// Map moodScore (-5 to 5) to Y height: -5 is bottom (height - padding), 5 is top (padding)
-			const normalizedScore = (log.moodScore + 5) / 10; // 0 to 1
+			const normalizedScore = (point.score + 5) / 10; // 0 to 1
 			const y = height - padding - normalizedScore * (height - padding * 2);
-
-			// Format X-axis date consistently, e.g. "DD MMM"
-			const rawDate =
-				'createdAt' in log && log.createdAt ? log.createdAt : 'date' in log ? log.date : Date.now();
-			const dateObj = new Date(rawDate);
-			const day = String(dateObj.getDate()).padStart(2, '0');
-			const months = [
-				'Jan',
-				'Feb',
-				'Mar',
-				'Apr',
-				'May',
-				'Jun',
-				'Jul',
-				'Aug',
-				'Sep',
-				'Oct',
-				'Nov',
-				'Dec'
-			];
-			const month = months[dateObj.getMonth()];
-			const formattedDate = `${day} ${month}`;
 
 			return {
 				x,
 				y,
-				score: log.moodScore,
-				label: log.moodLabel,
-				date: formattedDate
+				timestamp: point.timestamp,
+				score: point.score,
+				label: point.moodLabel,
+				axisLabel: point.label,
+				count: point.count
 			};
 		});
 	});
+
+	function formatScore(score: number) {
+		const rounded = Number.isInteger(score) ? String(score) : score.toFixed(1);
+		return score > 0 ? `+${rounded}` : rounded;
+	}
 
 	// SVG Path command generator
 	let linePath = $derived.by(() => {
@@ -269,23 +258,40 @@
 	<div
 		class="bg-soft-dark-blue border border-slate-gray/10 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl"
 	>
-		<div class="flex items-center justify-between">
+		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h2 class="text-sm font-bold text-soft-white">Mood Trend Line</h2>
-				<p class="text-[10px] text-slate-gray">
-					Last {chartLogs.length} logged check-ins (-5 to 5 scale)
-				</p>
+				<p class="text-[10px] text-slate-gray">{trendDescription} · −5 to 5 scale</p>
 			</div>
 
-			<div class="flex gap-4 text-[10px] text-slate-gray font-mono">
-				<div class="flex items-center gap-1">
-					<span class="w-2 h-2 rounded-full bg-cyan-glow"></span>
-					<span>Positive</span>
-				</div>
-				<div class="flex items-center gap-1">
-					<span class="w-2 h-2 rounded-full bg-soft-red"></span>
-					<span>Negative</span>
-				</div>
+			<div
+				class="flex rounded-xl border border-cyan-glow/10 bg-deep-navy/55 p-1"
+				aria-label="Mood trend range"
+			>
+				{#each trendRanges as range (range.value)}
+					<button
+						type="button"
+						onclick={() => (trendRange = range.value)}
+						aria-pressed={trendRange === range.value}
+						class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {trendRange ===
+						range.value
+							? 'bg-cyan-glow/15 text-cyan-glow'
+							: 'text-slate-gray hover:text-pale-silver'}"
+					>
+						{range.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="flex justify-end gap-4 font-mono text-[10px] text-slate-gray">
+			<div class="flex items-center gap-1">
+				<span class="h-2 w-2 rounded-full bg-cyan-glow"></span>
+				<span>Positive</span>
+			</div>
+			<div class="flex items-center gap-1">
+				<span class="h-2 w-2 rounded-full bg-soft-red"></span>
+				<span>Negative</span>
 			</div>
 		</div>
 
@@ -351,8 +357,14 @@
 					{/if}
 
 					<!-- Point Markers & Text Labels -->
-					{#each chartPoints as pt (pt.date)}
+					{#each chartPoints as pt (pt.timestamp)}
 						<g class="group/point">
+							<title
+								>{pt.axisLabel}: {formatScore(pt.score)} mood score · {pt.count} check-in{pt.count ===
+								1
+									? ''
+									: 's'}</title
+							>
 							<!-- Hover expanding circle -->
 							<circle
 								cx={pt.x}
@@ -380,7 +392,7 @@
 								fill="#cbd5e1"
 								class="font-bold opacity-0 group-hover/point:opacity-100 transition-opacity duration-200"
 							>
-								{pt.score > 0 ? '+' : ''}{pt.score}
+								{formatScore(pt.score)}
 							</text>
 
 							<!-- Date Label below point -->
@@ -392,17 +404,15 @@
 								fill="#64748b"
 								class="font-mono"
 							>
-								{pt.date}
+								{pt.axisLabel}
 							</text>
 						</g>
 					{/each}
 				</svg>
 			{:else}
 				<div class="h-28 flex flex-col items-center justify-center text-center opacity-40">
-					<p class="text-xs font-semibold">No mood history available.</p>
-					<p class="text-[10px] mt-0.5">
-						Submit check-ins on the Home screen to view graph analytics.
-					</p>
+					<p class="text-xs font-semibold">No check-ins in this {trendRange} view.</p>
+					<p class="text-[10px] mt-0.5">Try another range or add a mood check-in from Home.</p>
 				</div>
 			{/if}
 		</div>

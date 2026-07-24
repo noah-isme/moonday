@@ -164,10 +164,10 @@
 
 				{#if message.role === 'assistant' && message.status}
 					<div
-						class="flex items-center gap-2 px-1 text-xs font-medium text-violet-glow"
+						class="flex items-center gap-2 px-1 text-xs font-medium text-cyan-glow"
 						aria-live="polite"
 					>
-						<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-glow"></span>
+						<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-glow"></span>
 						<span>{message.status.replace(/^[\p{Extended_Pictographic}\s]+/u, '')}</span>
 					</div>
 				{/if}
@@ -175,8 +175,8 @@
 				<div
 					class="rounded-3xl px-5 py-4 text-base leading-[1.65] transition-all duration-300 {message.role ===
 					'user'
-						? 'rounded-tr-lg bg-violet-glow text-deep-navy font-medium shadow-[0_10px_30px_rgba(167,139,250,0.12)]'
-						: 'rounded-tl-lg border border-white/7 bg-[#1b263d] text-soft-white shadow-[0_14px_36px_rgba(0,0,0,0.14)]'} {isLastAssistant &&
+						? 'rounded-tr-lg border border-violet-glow/25 bg-[linear-gradient(135deg,#40366f,#17584f)] text-soft-white font-semibold shadow-[0_12px_34px_rgba(0,0,0,0.2)]'
+						: 'rounded-tl-lg border border-cyan-glow/10 bg-[linear-gradient(145deg,rgba(10,39,36,0.98),rgba(5,26,24,0.98))] text-soft-white shadow-[0_14px_36px_rgba(0,0,0,0.22)]'} {isLastAssistant &&
 					(chatStore.isThinking || chatStore.isStreaming)
 						? 'opacity-80'
 						: ''}"
@@ -190,7 +190,7 @@
 						<div class="flex min-w-[200px] flex-col gap-3 md:min-w-[300px]">
 							<textarea
 								bind:value={editedContent}
-								class="w-full resize-y rounded-xl border border-deep-navy/20 bg-white/45 p-2 text-base text-deep-navy outline-none"
+								class="w-full resize-y rounded-xl border border-cyan-glow/15 bg-deep-navy/70 p-2 text-base text-soft-white outline-none"
 								rows="3"
 								aria-label="Edit message"></textarea>
 							<div class="flex justify-end gap-2 text-xs">
@@ -397,8 +397,8 @@
 	}
 
 	:global(.message-action:hover) {
-		border-color: rgb(167 139 250 / 0.4);
-		background: rgb(167 139 250 / 0.08);
+		border-color: rgb(103 230 210 / 0.35);
+		background: rgb(103 230 210 / 0.08);
 		color: var(--color-soft-white);
 	}
 
@@ -416,7 +416,7 @@
 		gap: 0.125rem;
 		border: 1px solid rgb(255 255 255 / 0.1);
 		border-radius: 0.875rem;
-		background: #151d31;
+		background: #102a28;
 		padding: 0.375rem;
 		box-shadow: 0 16px 40px rgb(0 0 0 / 0.35);
 	}
@@ -459,7 +459,7 @@
 	:global(.markdown-content code) {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 		background-color: rgba(255, 255, 255, 0.15);
-		color: #c084fc; /* purple accent */
+		color: var(--color-cyan-glow);
 		padding: 0.125rem 0.25rem;
 		border-radius: 0.25rem;
 		font-size: 0.875em;
@@ -481,7 +481,7 @@
 	}
 	:global(.markdown-content strong) {
 		font-weight: 600;
-		color: #e2e8f0;
+		color: var(--color-soft-white);
 	}
 	:global(.markdown-content em) {
 		font-style: italic;

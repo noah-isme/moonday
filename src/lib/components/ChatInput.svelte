@@ -51,7 +51,7 @@
 </script>
 
 <div
-	class="relative rounded-3xl border border-white/8 bg-soft-dark-blue/80 p-2.5 shadow-[0_16px_44px_rgba(0,0,0,0.16)] transition-colors focus-within:border-violet-glow/35"
+	class="relative rounded-3xl border border-cyan-glow/12 bg-[linear-gradient(145deg,rgba(16,42,40,0.96),rgba(8,31,30,0.96))] p-2.5 shadow-[0_16px_44px_rgba(0,0,0,0.2)] transition-colors focus-within:border-cyan-glow/40 focus-within:shadow-[0_0_30px_rgba(103,230,210,0.07)]"
 >
 	{#if voiceStore.isListening || voiceStore.isTranscribing || voiceStore.transcript.trim() || voiceStore.isPreparingSpeech}
 		<div
@@ -114,7 +114,7 @@
 			<button
 				type="button"
 				onclick={onToggleDoNotRemember}
-				class="composer-icon {doNotRemember ? 'active-private' : ''}"
+				class="composer-icon mobile-secondary-tool {doNotRemember ? 'active-private' : ''}"
 				title={doNotRemember
 					? 'Memory suggestions disabled for this message'
 					: 'Do not remember this message'}
@@ -128,7 +128,9 @@
 			<button
 				type="button"
 				onclick={() => chatStore.toggleWebSearch()}
-				class="composer-icon {chatStore.isWebSearchEnabled ? 'active-research' : ''}"
+				class="composer-icon mobile-secondary-tool {chatStore.isWebSearchEnabled
+					? 'active-research'
+					: ''}"
 				title={chatStore.isWebSearchEnabled ? 'Web research enabled' : 'Enable web research'}
 				aria-label={chatStore.isWebSearchEnabled ? 'Disable web research' : 'Enable web research'}
 				aria-pressed={chatStore.isWebSearchEnabled}
@@ -139,7 +141,7 @@
 				type="button"
 				onclick={handleSend}
 				disabled={!textValue.trim() || isThinking}
-				class="flex h-10 w-10 items-center justify-center rounded-full bg-violet-glow text-deep-navy transition-colors hover:bg-violet-glow/90 disabled:bg-deep-navy/50 disabled:text-slate-gray"
+				class="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-glow/30 bg-[linear-gradient(135deg,#126f65,#245a55)] text-soft-white shadow-[0_0_22px_rgba(7,80,71,0.2)] transition-all hover:scale-105 disabled:scale-100 disabled:bg-deep-navy/50 disabled:text-slate-gray disabled:shadow-none"
 				title="Send message"
 				aria-label="Send message"
 			>
@@ -154,7 +156,7 @@
 
 	{#if contextMenuOpen}
 		<div
-			class="absolute bottom-[calc(100%-0.25rem)] left-10 z-40 grid min-w-48 gap-1 rounded-2xl border border-white/10 bg-soft-dark-blue p-1.5 text-xs shadow-2xl"
+			class="absolute bottom-[calc(100%-0.25rem)] left-10 z-40 grid min-w-48 gap-1 rounded-2xl border border-cyan-glow/12 bg-soft-dark-blue p-1.5 text-xs shadow-2xl"
 			role="menu"
 			aria-label="Add context"
 		>
@@ -221,12 +223,18 @@
 	}
 
 	.active-private {
-		background: rgb(34 211 238 / 0.12);
+		background: rgb(103 230 210 / 0.12);
 		color: var(--color-cyan-glow);
 	}
 
 	.active-research {
-		background: rgb(167 139 250 / 0.15);
+		background: rgb(173 156 255 / 0.15);
 		color: var(--color-violet-glow);
+	}
+
+	@media (max-width: 639px) {
+		.mobile-secondary-tool {
+			display: none;
+		}
 	}
 </style>

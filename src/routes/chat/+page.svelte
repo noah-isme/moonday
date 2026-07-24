@@ -212,7 +212,7 @@
 
 	{#if historyPanelOpen}
 		<aside
-			class="hidden w-[280px] min-h-0 flex-shrink-0 overflow-hidden rounded-3xl border border-white/6 xl:block"
+			class="ambient-panel hidden min-h-0 w-[280px] flex-shrink-0 overflow-hidden rounded-[2rem] xl:block"
 			aria-label="Conversation history"
 		>
 			<ConversationHistory onSelect={handleSelectChat} />
@@ -221,7 +221,7 @@
 
 	<!-- Center Chat Message Window -->
 	<div
-		class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl bg-soft-dark-blue/18 p-3 md:p-5"
+		class="ambient-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[2rem] p-3 md:p-5"
 	>
 		<!-- Chat header -->
 		<header class="mb-3 flex items-center justify-between gap-3 px-1 pb-3 select-none">
@@ -230,10 +230,14 @@
 					<AvatarMoon state={uiStore.moonState} />
 				</div>
 				<div class="min-w-0">
-					<h2 class="truncate text-base font-semibold text-soft-white md:text-lg">
+					<h2 class="font-display truncate text-base font-semibold text-soft-white md:text-lg">
 						{activeConv?.title || `Chatting with ${activeCompanionName}`}
 					</h2>
-					<div class="mt-0.5 flex items-center gap-2 text-xs text-slate-gray">
+					<div class="mt-1 flex items-center gap-2 text-xs text-slate-gray">
+						<span
+							class="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-glow shadow-[0_0_9px_var(--color-cyan-glow)]"
+							aria-hidden="true"
+						></span>
 						<span class="truncate">{activeCompanionName}</span>
 						<span aria-hidden="true">·</span>
 						<span class="capitalize">{uiStore.moonState}</span>
@@ -245,7 +249,7 @@
 								settingsStore.setResponseLanguage(
 									(event.currentTarget as HTMLSelectElement).value as 'auto' | 'en' | 'id'
 								)}
-							class="max-w-24 rounded-lg border border-white/8 bg-deep-navy/55 px-2 py-1 text-xs text-pale-silver outline-none"
+							class="max-w-24 rounded-full border border-cyan-glow/12 bg-deep-navy/55 px-2 py-1 text-xs text-pale-silver outline-none"
 							title="Response language"
 						>
 							<option value="auto">Auto language</option>
@@ -408,15 +412,14 @@
 				<button
 					type="button"
 					onclick={() => (window.location.href = '/memories')}
-					class="ml-auto font-semibold text-pale-silver hover:text-violet-glow"
-					>Edit memories</button
+					class="ml-auto font-semibold text-pale-silver hover:text-cyan-glow">Edit memories</button
 				>
 			</div>
 		{/if}
 
 		{#if chatStore.pendingMemories.length > 0}
 			<div
-				class="mb-3 rounded-xl border border-violet-glow/25 bg-violet-glow/5 p-3 text-xs text-slate-gray"
+				class="mb-3 rounded-xl border border-violet-glow/20 bg-violet-glow/6 p-3 text-xs text-slate-gray"
 			>
 				<p class="font-semibold text-pale-silver">
 					MOONDAY found context that may be useful later.
@@ -435,7 +438,7 @@
 								<button
 									type="button"
 									onclick={() => savePendingMemory(index)}
-									class="font-semibold text-violet-glow hover:text-soft-white">Save</button
+									class="font-semibold text-cyan-glow hover:text-soft-white">Save</button
 								>
 								<button
 									type="button"
@@ -455,9 +458,7 @@
 			class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-1 scroll-smooth"
 		>
 			{#if showDailyContinuity}
-				<div
-					class="mx-auto mb-4 max-w-lg rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-4 text-center"
-				>
+				<div class="dark-section mx-auto mb-4 max-w-lg rounded-2xl p-4 text-center">
 					<p class="text-xs font-semibold text-pale-silver">A new day, a gentle choice</p>
 					<p class="mt-1 text-xs text-slate-gray">
 						{dailyContinuity?.prompt}
@@ -467,13 +468,13 @@
 							type="button"
 							onclick={() =>
 								handleSend(dailyContinuity?.prompt || 'Let’s continue where we left off.')}
-							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-violet-glow/50"
+							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-cyan-glow/50"
 							>Continue</button
 						>
 						<button
 							type="button"
 							onclick={() => handleSend('Help me reflect on yesterday before I begin today.')}
-							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-violet-glow/50"
+							class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-pale-silver hover:border-cyan-glow/50"
 							>Reflect</button
 						>
 						<button
@@ -498,23 +499,21 @@
 					class="h-full flex flex-col items-center justify-center text-center p-6 select-none opacity-40"
 				>
 					<div class="mb-3 h-12 w-12"><AvatarMoon /></div>
-					<p class="text-sm font-semibold">Start sharing your day.</p>
-					<p class="text-xs max-w-xs mt-1">
-						MOONDAY parses feelings and reflects contexts dynamically.
-					</p>
+					<p class="font-display text-sm font-semibold">Your side of the story?</p>
+					<p class="mt-1 max-w-xs text-xs">Start anywhere. Messy thoughts are fully supported.</p>
 				</div>
 			{/each}
 
 			{#if showStarterPrompts}
 				<div class="max-w-lg mx-auto w-full px-2 pb-6 pt-3 text-center">
-					<p class="text-xs font-semibold text-pale-silver">A gentle place to begin</p>
-					<p class="text-xs text-slate-gray mt-1">Pick a thought, or write your own.</p>
+					<p class="font-display text-sm font-semibold text-pale-silver">Need an opening line?</p>
+					<p class="mt-1 text-xs text-slate-gray">Borrow one. I won’t tell.</p>
 					<div class="grid gap-2 mt-4 text-left">
 						{#each starterPrompts as prompt (prompt)}
 							<button
 								type="button"
 								onclick={() => handleSend(prompt)}
-								class="w-full px-4 py-3 rounded-2xl bg-deep-navy/40 border border-slate-gray/10 text-xs text-pale-silver hover:border-violet-glow/40 hover:bg-violet-glow/10 transition-colors cursor-pointer"
+								class="dark-section w-full cursor-pointer rounded-2xl px-4 py-3 text-sm text-pale-silver transition-colors hover:border-cyan-glow/35 hover:bg-cyan-glow/8"
 							>
 								{prompt}
 							</button>
@@ -522,8 +521,8 @@
 						<button
 							type="button"
 							onclick={() => (coViewerOpen = true)}
-							class="w-full px-4 py-3 rounded-2xl bg-violet-glow/10 border border-violet-glow/30 text-xs text-pale-silver hover:bg-violet-glow/20 transition-colors cursor-pointer"
-							>Bring something you saw</button
+							class="w-full cursor-pointer rounded-2xl border border-violet-glow/25 bg-violet-glow/8 px-4 py-3 text-sm text-pale-silver transition-colors hover:bg-violet-glow/15"
+							>Bring me some internet drama</button
 						>
 					</div>
 				</div>
@@ -538,7 +537,7 @@
 							<span>is thinking...</span>
 						</div>
 						<div
-							class="px-4 py-3 rounded-2xl rounded-tl-none bg-soft-dark-blue text-slate-gray border border-slate-gray/10 text-sm flex items-center gap-1"
+							class="dark-section flex items-center gap-1 rounded-2xl rounded-tl-none px-4 py-3 text-sm text-slate-gray"
 						>
 							<span class="w-2 h-2 rounded-full bg-slate-gray/40 animate-bounce"></span>
 							<span
@@ -615,12 +614,12 @@
 	<!-- Right Drawer (Remembered Context / Memories & Settings Drawer) -->
 	{#if drawerOpen}
 		<div
-			class="absolute inset-y-0 right-0 z-30 w-full sm:w-80 bg-soft-dark-blue border-l border-slate-gray/10 shadow-2xl p-6 flex flex-col rounded-3xl sm:rounded-l-3xl sm:rounded-r-none animate-[slideIn_0.3s_ease-out]"
+			class="ambient-panel absolute inset-y-0 right-0 z-30 flex w-full animate-[slideIn_0.3s_ease-out] flex-col rounded-3xl p-6 shadow-2xl sm:w-80 sm:rounded-r-none sm:rounded-l-3xl"
 		>
 			<div
 				class="flex justify-between items-center pb-4 border-b border-slate-gray/10 mb-6 select-none"
 			>
-				<h3 class="font-bold text-soft-white text-md">Companion Context</h3>
+				<h3 class="font-display font-bold text-soft-white text-md">Companion context</h3>
 				<button
 					type="button"
 					onclick={() => (drawerOpen = false)}
@@ -687,7 +686,7 @@
 							class="p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl flex items-center justify-between"
 						>
 							<span class="text-xs font-bold text-pale-silver">{activeCompanionName}</span>
-							<a href={resolveRoute('/settings')} class="text-xs text-violet-glow hover:underline"
+							<a href={resolveRoute('/settings')} class="text-xs text-cyan-glow hover:underline"
 								>Change</a
 							>
 						</div>
@@ -713,11 +712,11 @@
 							disabled={!activeConv}
 							class="w-9 h-5 rounded-full p-0.5 transition-colors duration-300 cursor-pointer disabled:cursor-not-allowed {activeConv?.memoryExtractionEnabled !==
 							false
-								? 'bg-violet-glow'
+								? 'bg-cyan-glow'
 								: 'bg-slate-gray/30'}"
 						>
 							<div
-								class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
+								class="h-4 w-4 rounded-full border border-cyan-glow/35 bg-deep-navy transition-transform duration-300"
 								class:translate-x-4={activeConv?.memoryExtractionEnabled !== false}
 							></div>
 						</button>

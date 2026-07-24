@@ -197,9 +197,12 @@
 <div class="space-y-8 select-none max-w-3xl mx-auto w-full">
 	<!-- Page Header -->
 	<div class="space-y-2">
-		<h1 class="text-2xl font-extrabold text-soft-white tracking-tight">System Settings</h1>
-		<p class="text-xs text-slate-gray">
-			Configure companion personality, model routing, voice parameters, and memory privacy.
+		<p class="eyebrow">Make it yours</p>
+		<h1 class="font-display text-3xl font-extrabold tracking-tight text-soft-white">
+			Tune your MOONDAY
+		</h1>
+		<p class="text-sm text-slate-gray">
+			Adjust the personality, voice, intelligence, and privacy boundaries behind your companion.
 		</p>
 	</div>
 
@@ -605,7 +608,7 @@
 						disabled={!voiceStore.isSupported}
 					>
 						<div
-							class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
+							class="h-4 w-4 rounded-full border border-cyan-glow/35 bg-deep-navy transition-transform duration-300"
 							class:translate-x-4={settingsStore.voiceInputEnabled}
 						></div>
 					</button>
@@ -630,7 +633,7 @@
 							: 'bg-slate-gray/30'}"
 					>
 						<div
-							class="w-4 h-4 rounded-full bg-soft-white transition-transform duration-300"
+							class="h-4 w-4 rounded-full border border-cyan-glow/35 bg-deep-navy transition-transform duration-300"
 							class:translate-x-4={settingsStore.voiceOutputEnabled}
 						></div>
 					</button>
@@ -721,7 +724,7 @@
 						: 'bg-slate-gray/30'}"
 				>
 					<div
-						class="w-4 h-4 rounded-full bg-soft-white transition-transform"
+						class="h-4 w-4 rounded-full border border-cyan-glow/35 bg-deep-navy transition-transform"
 						class:translate-x-4={settingsStore.proactiveCheckInsEnabled}
 					></div>
 				</button>
