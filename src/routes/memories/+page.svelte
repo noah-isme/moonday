@@ -190,7 +190,7 @@
 					bind:value={selectedType}
 					class="w-full p-2.5 text-sm rounded-xl bg-deep-navy border border-slate-gray/10 text-soft-white outline-none focus:border-violet-glow/30 transition-all duration-300 capitalize"
 				>
-					{#each memoryTypes as type}
+					{#each memoryTypes as type (type.value)}
 						<option value={type.value}>{type.label}</option>
 					{/each}
 				</select>
@@ -216,7 +216,7 @@
 
 	<!-- Memories Grid List -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-		{#each filteredMemories as memory}
+		{#each filteredMemories as memory (memory.id)}
 			<div
 				class="bg-soft-dark-blue border border-slate-gray/10 rounded-3xl p-5 md:p-6 space-y-3 relative hover:border-slate-gray/25 transition-colors duration-300"
 			>
@@ -258,7 +258,7 @@
 									bind:value={editForm.type}
 									class="w-full p-2 text-xs rounded-lg bg-deep-navy border border-slate-gray/10 text-soft-white outline-none focus:border-violet-glow/30 capitalize"
 								>
-									{#each memoryTypes.slice(1) as type}
+									{#each memoryTypes.slice(1) as type (type.value)}
 										<option value={type.value}>{type.label}</option>
 									{/each}
 								</select>

@@ -44,7 +44,7 @@ describe('API Route Validation & Security', () => {
 	});
 
 	it('should reject excessively large payload in chat route', async () => {
-		const largeMessage = 'a'.repeat(600 * 1024); // 600 KB (limit is 512 KB)
+		const largeMessage = 'a'.repeat(10 * 1024 * 1024); // 10 MB (limit is 9 MB)
 		const request = new Request('http://localhost/api/chat', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },

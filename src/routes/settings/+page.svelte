@@ -159,6 +159,18 @@
 			.trim();
 	});
 
+	function updateTrait(
+		trait: 'warmth' | 'directness' | 'humor' | 'responseLength' | 'questionFrequency' | 'curiosity',
+		val: number
+	) {
+		if (trait === 'warmth') warmth = val;
+		else if (trait === 'directness') directness = val;
+		else if (trait === 'humor') humor = val;
+		else if (trait === 'responseLength') responseLength = val;
+		else if (trait === 'questionFrequency') questionFrequency = val;
+		else if (trait === 'curiosity') curiosity = val;
+	}
+
 	function setPreference(id: string, value: number) {
 		if (id === 'warmth') warmth = value;
 		else if (id === 'directness') directness = value;
@@ -317,7 +329,7 @@
 					</h3>
 
 					<div class="grid gap-2 md:grid-cols-3">
-						{#each companionPresets as preset}
+						{#each companionPresets as preset (preset.id)}
 							<button
 								type="button"
 								onclick={() => applyPreset(preset)}
@@ -381,8 +393,7 @@
 									min="0"
 									max="5"
 									bind:value={sarcasmLevelNum}
-									disabled={isSubmitting}
-									class="flex-1 h-1.5 bg-[#141b2b] rounded-lg appearance-none cursor-pointer accent-violet-glow border border-slate-gray/10"
+									class="flex-1 h-1.5 accent-violet-glow cursor-pointer"
 								/>
 								<span class="text-[10px] text-slate-gray font-semibold">Brutal</span>
 							</div>
@@ -390,7 +401,7 @@
 					</div>
 
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-1">
-						{#each [{ id: 'warmth', label: 'Warmth', value: warmth }, { id: 'directness', label: 'Directness', value: directness }, { id: 'humor', label: 'Humor', value: humor }, { id: 'responseLength', label: 'Response length', value: responseLength }, { id: 'questionFrequency', label: 'Questions', value: questionFrequency }, { id: 'curiosity', label: 'Curiosity', value: curiosity }] as control}
+						{#each [{ id: 'warmth', label: 'Warmth', value: warmth }, { id: 'directness', label: 'Directness', value: directness }, { id: 'humor', label: 'Humor', value: humor }, { id: 'responseLength', label: 'Response length', value: responseLength }, { id: 'questionFrequency', label: 'Questions', value: questionFrequency }, { id: 'curiosity', label: 'Curiosity', value: curiosity }] as control (control.id)}
 							<div class="flex flex-col gap-1.5">
 								<div class="flex items-center justify-between text-xs">
 									<label for={control.id} class="font-semibold text-pale-silver"
@@ -403,14 +414,20 @@
 									type="range"
 									min="1"
 									max="5"
+									step="1"
 									value={control.value}
 									oninput={(event) =>
-										setPreference(
-											control.id,
+										updateTrait(
+											control.id as
+												| 'warmth'
+												| 'directness'
+												| 'humor'
+												| 'responseLength'
+												| 'questionFrequency'
+												| 'curiosity',
 											Number((event.currentTarget as HTMLInputElement).value)
 										)}
-									disabled={isSubmitting}
-									class="w-full h-1.5 accent-violet-glow cursor-pointer disabled:opacity-55"
+									class="accent-violet-glow"
 								/>
 							</div>
 						{/each}
@@ -640,7 +657,7 @@
 							class="rounded-xl border border-slate-gray/10 bg-deep-navy p-2.5 text-xs text-pale-silver"
 						>
 							<option value="">Use a voice matching the conversation language</option>
-							{#each voiceStore.voices as voice}
+							{#each voiceStore.voices as voice (voice.name)}
 								<option value={voice.name}>{voice.name} ({voice.lang})</option>
 							{/each}
 						</select>

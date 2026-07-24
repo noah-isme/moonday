@@ -7,6 +7,41 @@ import type {
 } from '../types';
 import { searchToolsSpecification, executeTool } from '../../tools/browser';
 
+interface ProviderError extends Error {
+	status?: number;
+}
+
+interface GroqMessage {
+	role: 'system' | 'user' | 'assistant' | 'tool';
+	content?: string;
+	name?: string;
+	tool_call_id?: string;
+	tool_calls?: Array<{
+		id: string;
+		type?: string;
+		function: {
+			name: string;
+			arguments: string;
+		};
+	}>;
+}
+
+interface GroqChoice {
+	message?: GroqMessage;
+	delta?: {
+		content?: string;
+	};
+	finish_reason?: string;
+}
+
+interface GroqResponse {
+	choices?: GroqChoice[];
+	usage?: {
+		prompt_tokens?: number;
+		completion_tokens?: number;
+	};
+}
+
 async function handleResponseError(response: Response): Promise<never> {
 	const errorText = await response.text();
 	let errorMessage = `Groq API error: ${response.status} ${response.statusText}`;
@@ -30,8 +65,8 @@ async function handleResponseError(response: Response): Promise<never> {
 		}
 	}
 
-	const error = new Error(errorMessage);
-	(error as any).status = response.status;
+	const error: ProviderError = new Error(errorMessage);
+	error.status = response.status;
 	throw error;
 }
 
@@ -68,7 +103,7 @@ export class GroqProvider implements AIProvider {
 
 		let response: Response;
 		try {
-			const body: any = {
+			const body: Record<string, unknown> = {
 				model,
 				messages: requestMessages.map((m) => ({
 					role: m.role,
@@ -92,9 +127,10 @@ export class GroqProvider implements AIProvider {
 				},
 				body: JSON.stringify(body)
 			});
-		} catch (e: any) {
-			const networkError = new Error(`Groq network error: ${e.message || e}`);
-			(networkError as any).status = 503;
+		} catch (e: unknown) {
+			const errMessage = e instanceof Error ? e.message : String(e);
+			const networkError: ProviderError = new Error(`Groq network error: ${errMessage}`);
+			networkError.status = 503;
 			throw networkError;
 		}
 
@@ -102,17 +138,21 @@ export class GroqProvider implements AIProvider {
 			await handleResponseError(response);
 		}
 
-		const data = (await response.json()) as any;
+		const data = (await response.json()) as GroqResponse;
 		const choice = data.choices?.[0];
 		const message = choice?.message;
 		const finishReason = choice?.finish_reason;
 
-		let promptTokens = data.usage?.prompt_tokens || 0;
-		let completionTokens = data.usage?.completion_tokens || 0;
+		const promptTokens = data.usage?.prompt_tokens || 0;
+		const completionTokens = data.usage?.completion_tokens || 0;
 
 		if (finishReason === 'tool_calls' && message?.tool_calls && message.tool_calls.length > 0) {
 			// Save the tool call message
-			requestMessages.push(message);
+			requestMessages.push({
+				role: (message.role as 'system' | 'user' | 'assistant') || 'assistant',
+				content: message.content || '',
+				tool_calls: message.tool_calls
+			});
 
 			// Execute tool calls
 			for (const toolCall of message.tool_calls) {
@@ -137,7 +177,6 @@ export class GroqProvider implements AIProvider {
 			}
 
 			// Do second request to Groq without tools to summarize
-			const secondStartTime = Date.now();
 			let secondResponse: Response;
 			try {
 				secondResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -159,9 +198,10 @@ export class GroqProvider implements AIProvider {
 						max_tokens: options.maxTokens ?? 2048
 					})
 				});
-			} catch (e: any) {
-				const networkError = new Error(`Groq network error: ${e.message || e}`);
-				(networkError as any).status = 503;
+			} catch (e: unknown) {
+				const errMessage = e instanceof Error ? e.message : String(e);
+				const networkError: ProviderError = new Error(`Groq network error: ${errMessage}`);
+				networkError.status = 503;
 				throw networkError;
 			}
 
@@ -169,7 +209,7 @@ export class GroqProvider implements AIProvider {
 				await handleResponseError(secondResponse);
 			}
 
-			const secondData = (await secondResponse.json()) as any;
+			const secondData = (await secondResponse.json()) as GroqResponse;
 			const latencyMs = Date.now() - startTime;
 			const content = secondData.choices?.[0]?.message?.content || '';
 
@@ -237,9 +277,10 @@ export class GroqProvider implements AIProvider {
 						}
 					})
 				});
-			} catch (e: any) {
-				const networkError = new Error(`Groq network error: ${e.message || e}`);
-				(networkError as any).status = 503;
+			} catch (e: unknown) {
+				const errMessage = e instanceof Error ? e.message : String(e);
+				const networkError: ProviderError = new Error(`Groq network error: ${errMessage}`);
+				networkError.status = 503;
 				throw networkError;
 			}
 
@@ -276,7 +317,7 @@ export class GroqProvider implements AIProvider {
 							if (trimmed.startsWith('data: ')) {
 								const jsonStr = trimmed.slice(6);
 								try {
-									const parsed = JSON.parse(jsonStr);
+									const parsed = JSON.parse(jsonStr) as GroqResponse;
 									const delta = parsed.choices?.[0]?.delta?.content || '';
 									if (delta) {
 										fullContent += delta;
@@ -286,7 +327,7 @@ export class GroqProvider implements AIProvider {
 										promptTokens = parsed.usage.prompt_tokens;
 										completionTokens = parsed.usage.completion_tokens;
 									}
-								} catch (e) {
+								} catch {
 									// Ignore
 								}
 							}
@@ -297,7 +338,7 @@ export class GroqProvider implements AIProvider {
 						if (trimmed && trimmed !== 'data: [DONE]' && trimmed.startsWith('data: ')) {
 							const jsonStr = trimmed.slice(6);
 							try {
-								const parsed = JSON.parse(jsonStr);
+								const parsed = JSON.parse(jsonStr) as GroqResponse;
 								const delta = parsed.choices?.[0]?.delta?.content || '';
 								if (delta) {
 									fullContent += delta;
@@ -307,7 +348,7 @@ export class GroqProvider implements AIProvider {
 									promptTokens = parsed.usage.prompt_tokens;
 									completionTokens = parsed.usage.completion_tokens;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore
 							}
 						}
@@ -353,9 +394,10 @@ export class GroqProvider implements AIProvider {
 					tools: currentTools
 				})
 			});
-		} catch (e: any) {
-			const networkError = new Error(`Groq network error: ${e.message || e}`);
-			(networkError as any).status = 503;
+		} catch (e: unknown) {
+			const errMessage = e instanceof Error ? e.message : String(e);
+			const networkError: ProviderError = new Error(`Groq network error: ${errMessage}`);
+			networkError.status = 503;
 			throw networkError;
 		}
 
@@ -395,7 +437,7 @@ export class GroqProvider implements AIProvider {
 							if (trimmed.startsWith('data: ')) {
 								const jsonStr = trimmed.slice(6);
 								try {
-									const parsed = JSON.parse(jsonStr);
+									const parsed = JSON.parse(jsonStr) as GroqResponse;
 									const delta = parsed.choices?.[0]?.delta?.content || '';
 									if (delta) {
 										fullContent += delta;
@@ -405,7 +447,7 @@ export class GroqProvider implements AIProvider {
 										promptTokens = parsed.usage.prompt_tokens;
 										completionTokens = parsed.usage.completion_tokens;
 									}
-								} catch (e) {
+								} catch {
 									// Ignore
 								}
 							}
@@ -429,7 +471,7 @@ export class GroqProvider implements AIProvider {
 			return makeMockStreamGenerator();
 		}
 
-		const data = (await response.json()) as any;
+		const data = (await response.json()) as GroqResponse;
 		const choice = data.choices?.[0];
 		const message = choice?.message;
 		const finishReason = choice?.finish_reason;
@@ -443,7 +485,11 @@ export class GroqProvider implements AIProvider {
 				yield { type: 'status' as const, message: 'Cross-checking data on the web...' };
 
 				// Save the tool call message
-				requestMessages.push(message);
+				requestMessages.push({
+					role: (message.role as 'system' | 'user' | 'assistant') || 'assistant',
+					content: message.content || '',
+					tool_calls: message.tool_calls
+				});
 
 				// Execute tool calls
 				for (const toolCall of message.tool_calls) {
@@ -493,9 +539,10 @@ export class GroqProvider implements AIProvider {
 							}
 						})
 					});
-				} catch (e: any) {
-					const networkError = new Error(`Groq network error: ${e.message || e}`);
-					(networkError as any).status = 503;
+				} catch (e: unknown) {
+					const errMessage = e instanceof Error ? e.message : String(e);
+					const networkError: ProviderError = new Error(`Groq network error: ${errMessage}`);
+					networkError.status = 503;
 					throw networkError;
 				}
 
@@ -529,7 +576,7 @@ export class GroqProvider implements AIProvider {
 							if (trimmed.startsWith('data: ')) {
 								const jsonStr = trimmed.slice(6);
 								try {
-									const parsed = JSON.parse(jsonStr);
+									const parsed = JSON.parse(jsonStr) as GroqResponse;
 									const delta = parsed.choices?.[0]?.delta?.content || '';
 									if (delta) {
 										fullContent += delta;
@@ -539,7 +586,7 @@ export class GroqProvider implements AIProvider {
 										promptTokens += parsed.usage.prompt_tokens || 0;
 										completionTokens += parsed.usage.completion_tokens || 0;
 									}
-								} catch (e) {
+								} catch {
 									// Ignore
 								}
 							}
@@ -551,7 +598,7 @@ export class GroqProvider implements AIProvider {
 						if (trimmed && trimmed !== 'data: [DONE]' && trimmed.startsWith('data: ')) {
 							const jsonStr = trimmed.slice(6);
 							try {
-								const parsed = JSON.parse(jsonStr);
+								const parsed = JSON.parse(jsonStr) as GroqResponse;
 								const delta = parsed.choices?.[0]?.delta?.content || '';
 								if (delta) {
 									fullContent += delta;
@@ -561,7 +608,7 @@ export class GroqProvider implements AIProvider {
 									promptTokens += parsed.usage.prompt_tokens || 0;
 									completionTokens += parsed.usage.completion_tokens || 0;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore
 							}
 						}

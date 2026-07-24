@@ -482,7 +482,7 @@ export const POST: RequestHandler = async (event) => {
 		const hasEarlierHistory = newestHistoryRecords.length > HISTORY_WINDOW;
 		const historyRecords = newestHistoryRecords.slice(0, HISTORY_WINDOW).reverse();
 
-		let history = [...historyRecords];
+		const history = [...historyRecords];
 		if (reroll) {
 			// Find the last assistant message in history records and remove it
 			for (let i = history.length - 1; i >= 0; i--) {

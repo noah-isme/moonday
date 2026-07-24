@@ -92,32 +92,31 @@
 
 		<!-- Navigation Menu -->
 		<nav class="flex-1 space-y-1.5 mt-3">
-			{#each navItems as item}
+			{#each navItems as item (item.href)}
 				{@const isActive =
 					currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 				<a
 					href={item.href}
 					aria-current={isActive ? 'page' : undefined}
-					class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group {isActive
-						? 'bg-violet-glow text-deep-navy font-bold'
-						: 'text-pale-silver hover:bg-slate-gray/5 hover:text-soft-white'}"
+					class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 group {isActive
+						? 'bg-violet-glow text-deep-navy font-bold shadow-md'
+						: 'text-soft-white hover:bg-slate-gray/10'}"
 				>
 					<item.Icon
-						size={20}
-						strokeWidth={2}
-						class="transition-transform duration-300 group-hover:scale-105"
-						aria-hidden="true"
+						size={16}
+						class="flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
 					/>
 					<span>{item.label}</span>
 				</a>
 			{/each}
 		</nav>
 
-		<!-- Bottom Brand note -->
-		<div
-			class="border-t border-slate-gray/10 pt-4 text-center font-mono text-xs leading-relaxed text-slate-gray"
-		>
-			<p>Mindful Optimist Onboard Navigator Developed Around You</p>
+		<!-- Bottom Footer / Info -->
+		<div class="mt-auto pt-4 border-t border-slate-gray/10 text-center">
+			<p class="text-[10px] text-slate-gray">
+				MOONDAY Companion<br />
+				<span class="opacity-60">Personal & Private v0.1</span>
+			</p>
 		</div>
 	</aside>
 
@@ -182,7 +181,7 @@
 	<nav
 		class="flex md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-soft-dark-blue/95 backdrop-blur-md border-t border-slate-gray/10 z-40 justify-around items-center px-2 select-none"
 	>
-		{#each navItems as item}
+		{#each navItems as item (item.href)}
 			{@const isActive =
 				currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 			<a

@@ -1,12 +1,41 @@
 <script lang="ts">
-	import { moodStore, MOODS } from '$lib/stores/mood.svelte';
+	import { moodStore } from '$lib/stores/mood.svelte';
 	import { onMount } from 'svelte';
 	import { Lightbulb } from 'lucide-svelte';
 
-	let trendsData = $state<any[]>([]);
-	let reflections = $state<any[]>([]);
-	let weekly = $state<any>(null);
-	let weeklyDraft = $state<any>(null);
+	interface TrendData {
+		date: string;
+		moodScore: number;
+		label?: string;
+		moodLabel?: string;
+		createdAt?: string;
+	}
+	interface ReflectionData {
+		id: string;
+		date: string;
+		moodSummary?: string;
+		emotionalSummary?: string;
+		importantEvents?: string;
+		suggestedFocus?: string;
+	}
+	interface WeeklyReflectionData {
+		id?: string;
+		weekStart?: string;
+		summary?: string;
+		insights?: string[];
+		suggestions?: string[];
+		reflection?: string;
+		status?: string;
+		whatHelped?: string;
+		whatFeltHeavy?: string;
+		suggestedFocus?: string;
+		correction?: string;
+	}
+
+	let trendsData = $state<TrendData[]>([]);
+	let reflections = $state<ReflectionData[]>([]);
+	let weekly = $state<WeeklyReflectionData | null>(null);
+	let weeklyDraft = $state<WeeklyReflectionData | null>(null);
 	let weekStart = $state('');
 	let weeklyLoading = $state(false);
 	let correction = $state('');
@@ -57,7 +86,6 @@
 		if (response.ok) weekly = (await response.json()).reflection;
 	}
 
-
 	function formatDate(value: string) {
 		return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
 			weekday: 'long',
@@ -73,7 +101,9 @@
 
 		// Sort chronologically using Date timestamp comparison (O(n log n))
 		const sorted = [...rawLogs].sort((a, b) => {
-			return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+			const aVal = 'createdAt' in a && a.createdAt ? a.createdAt : 'date' in a ? a.date : 0;
+			const bVal = 'createdAt' in b && b.createdAt ? b.createdAt : 'date' in b ? b.date : 0;
+			return new Date(aVal).getTime() - new Date(bVal).getTime();
 		});
 
 		// Take the last 7 check-ins
@@ -98,7 +128,9 @@
 			const y = height - padding - normalizedScore * (height - padding * 2);
 
 			// Format X-axis date consistently, e.g. "DD MMM"
-			const dateObj = new Date(log.createdAt);
+			const rawDate =
+				'createdAt' in log && log.createdAt ? log.createdAt : 'date' in log ? log.date : Date.now();
+			const dateObj = new Date(rawDate);
 			const day = String(dateObj.getDate()).padStart(2, '0');
 			const months = [
 				'Jan',
@@ -149,28 +181,85 @@
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h2 class="text-sm font-bold text-soft-white">This week, tentatively</h2>
-				<p class="mt-1 text-xs text-slate-gray">Built from your logged moods, daily reflections, and memories you approved. This is a reflection, not a diagnosis.</p>
+				<p class="mt-1 text-xs text-slate-gray">
+					Built from your logged moods, daily reflections, and memories you approved. This is a
+					reflection, not a diagnosis.
+				</p>
 			</div>
-			<button type="button" onclick={generateWeeklyReflection} disabled={weeklyLoading} class="rounded-xl bg-violet-glow px-3 py-2 text-xs font-semibold text-deep-navy disabled:opacity-50">{weeklyLoading ? 'Generating…' : weekly ? 'Refresh reflection' : 'Generate weekly reflection'}</button>
+			<button
+				type="button"
+				onclick={generateWeeklyReflection}
+				disabled={weeklyLoading}
+				class="rounded-xl bg-violet-glow px-3 py-2 text-xs font-semibold text-deep-navy disabled:opacity-50"
+				>{weeklyLoading
+					? 'Generating…'
+					: weekly
+						? 'Refresh reflection'
+						: 'Generate weekly reflection'}</button
+			>
 		</div>
 		{#if weekly && weekly.status !== 'dismissed'}
 			<div class="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
-				<div class="rounded-2xl bg-deep-navy/45 p-3 sm:col-span-2"><p class="font-semibold text-pale-silver">{weekly.summary}</p></div>
-				<div class="rounded-2xl border border-slate-gray/10 p-3"><p class="text-[10px] font-bold uppercase tracking-wide text-cyan-glow">What may have helped</p><p class="mt-1.5 text-pale-silver">{weekly.whatHelped}</p></div>
-				<div class="rounded-2xl border border-slate-gray/10 p-3"><p class="text-[10px] font-bold uppercase tracking-wide text-moon-yellow">What may have felt heavy</p><p class="mt-1.5 text-pale-silver">{weekly.whatFeltHeavy}</p></div>
-				<div class="rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-3 sm:col-span-2"><p class="text-[10px] font-bold uppercase tracking-wide text-violet-glow">Suggested focus</p><p class="mt-1.5 text-pale-silver">{weekly.suggestedFocus}</p></div>
+				<div class="rounded-2xl bg-deep-navy/45 p-3 sm:col-span-2">
+					<p class="font-semibold text-pale-silver">{weekly.summary}</p>
+				</div>
+				<div class="rounded-2xl border border-slate-gray/10 p-3">
+					<p class="text-[10px] font-bold uppercase tracking-wide text-cyan-glow">
+						What may have helped
+					</p>
+					<p class="mt-1.5 text-pale-silver">{weekly.whatHelped}</p>
+				</div>
+				<div class="rounded-2xl border border-slate-gray/10 p-3">
+					<p class="text-[10px] font-bold uppercase tracking-wide text-moon-yellow">
+						What may have felt heavy
+					</p>
+					<p class="mt-1.5 text-pale-silver">{weekly.whatFeltHeavy}</p>
+				</div>
+				<div class="rounded-2xl border border-violet-glow/20 bg-violet-glow/5 p-3 sm:col-span-2">
+					<p class="text-[10px] font-bold uppercase tracking-wide text-violet-glow">
+						Suggested focus
+					</p>
+					<p class="mt-1.5 text-pale-silver">{weekly.suggestedFocus}</p>
+				</div>
 			</div>
-			{#if weekly.correction}<p class="mt-3 text-xs text-cyan-glow">Your correction: {weekly.correction}</p>{/if}
+			{#if weekly.correction}<p class="mt-3 text-xs text-cyan-glow">
+					Your correction: {weekly.correction}
+				</p>{/if}
 			<div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-				<button type="button" onclick={() => (showCorrection = !showCorrection)} class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-slate-gray hover:text-pale-silver">Correct this</button>
-				<button type="button" onclick={() => giveWeeklyFeedback('dismiss')} class="rounded-lg px-2.5 py-1.5 text-slate-gray hover:text-soft-red">Dismiss insight</button>
+				<button
+					type="button"
+					onclick={() => (showCorrection = !showCorrection)}
+					class="rounded-lg border border-slate-gray/15 px-2.5 py-1.5 text-slate-gray hover:text-pale-silver"
+					>Correct this</button
+				>
+				<button
+					type="button"
+					onclick={() => giveWeeklyFeedback('dismiss')}
+					class="rounded-lg px-2.5 py-1.5 text-slate-gray hover:text-soft-red"
+					>Dismiss insight</button
+				>
 				<span class="ml-auto text-[11px] text-slate-gray">Week of {formatDate(weekStart)}</span>
 			</div>
 			{#if showCorrection}
-				<div class="mt-3 flex gap-2"><input bind:value={correction} maxlength="1000" placeholder="What should MOONDAY understand differently?" class="min-w-0 flex-1 rounded-xl border border-slate-gray/15 bg-deep-navy px-3 py-2 text-xs text-soft-white outline-none" /><button type="button" onclick={() => giveWeeklyFeedback('correct')} class="rounded-xl bg-cyan-glow px-3 py-2 text-xs font-semibold text-deep-navy">Save correction</button></div>
+				<div class="mt-3 flex gap-2">
+					<input
+						bind:value={correction}
+						maxlength="1000"
+						placeholder="What should MOONDAY understand differently?"
+						class="min-w-0 flex-1 rounded-xl border border-slate-gray/15 bg-deep-navy px-3 py-2 text-xs text-soft-white outline-none"
+					/><button
+						type="button"
+						onclick={() => giveWeeklyFeedback('correct')}
+						class="rounded-xl bg-cyan-glow px-3 py-2 text-xs font-semibold text-deep-navy"
+						>Save correction</button
+					>
+				</div>
 			{/if}
 		{:else if weekly?.status === 'dismissed'}
-			<p class="mt-4 text-xs text-slate-gray">You dismissed this week’s reflection. You can generate a new one whenever it would be useful.</p>
+			<p class="mt-4 text-xs text-slate-gray">
+				You dismissed this week’s reflection. You can generate a new one whenever it would be
+				useful.
+			</p>
 		{:else if weeklyDraft}
 			<p class="mt-4 text-xs text-slate-gray">{weeklyDraft.summary}</p>
 		{/if}
@@ -262,7 +351,7 @@
 					{/if}
 
 					<!-- Point Markers & Text Labels -->
-					{#each chartPoints as pt}
+					{#each chartPoints as pt (pt.date)}
 						<g class="group/point">
 							<!-- Hover expanding circle -->
 							<circle
@@ -326,13 +415,15 @@
 		</h2>
 
 		<div class="space-y-4">
-			{#each reflections as reflection}
+			{#each reflections as reflection (reflection.id)}
 				<div
 					class="bg-soft-dark-blue/70 border border-slate-gray/10 rounded-3xl p-5 md:p-6 space-y-3 relative hover:border-slate-gray/25 transition-colors duration-300"
 				>
 					<!-- Date Badge -->
 					<div class="flex justify-between items-center">
-						<span class="text-xs font-bold text-violet-glow font-mono">{formatDate(reflection.date)}</span>
+						<span class="text-xs font-bold text-violet-glow font-mono"
+							>{formatDate(reflection.date)}</span
+						>
 						<span
 							class="text-[9px] bg-violet-glow/10 text-violet-glow border border-violet-glow/15 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider"
 						>
@@ -379,7 +470,11 @@
 					</div>
 				</div>
 			{:else}
-				<div class="rounded-3xl border border-dashed border-slate-gray/15 p-6 text-center text-xs text-slate-gray">No daily reflections yet. Generate one after a mood check-in or a meaningful conversation.</div>
+				<div
+					class="rounded-3xl border border-dashed border-slate-gray/15 p-6 text-center text-xs text-slate-gray"
+				>
+					No daily reflections yet. Generate one after a mood check-in or a meaningful conversation.
+				</div>
 			{/each}
 		</div>
 	</div>

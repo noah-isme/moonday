@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
+	import { resolveRoute } from '$app/paths';
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import { characterStore } from '$lib/stores/character.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
@@ -194,7 +195,9 @@
 	}
 
 	function setHistoryDrawer(open: boolean) {
-		const toggle = document.getElementById('conversation-history-toggle') as HTMLInputElement | null;
+		const toggle = document.getElementById(
+			'conversation-history-toggle'
+		) as HTMLInputElement | null;
 		if (toggle) toggle.checked = open;
 	}
 
@@ -205,11 +208,7 @@
 <div
 	class="relative flex h-[calc(100vh-140px)] min-h-0 flex-1 flex-col gap-4 overflow-hidden md:h-[calc(100vh-40px)] md:flex-row"
 >
-	<input
-		id="conversation-history-toggle"
-		type="checkbox"
-		class="peer sr-only xl:hidden"
-	/>
+	<input id="conversation-history-toggle" type="checkbox" class="peer sr-only xl:hidden" />
 
 	{#if historyPanelOpen}
 		<aside
@@ -641,7 +640,9 @@
 						class="flex items-center justify-between text-xs font-bold text-slate-gray uppercase tracking-wider"
 					>
 						<span>Saved Memories ({memoryStore.list.length})</span>
-						<a href="/memories" class="text-xs text-cyan-glow hover:underline normal-case">Manage</a
+						<a
+							href={resolveRoute('/memories')}
+							class="text-xs text-cyan-glow hover:underline normal-case">Manage</a
 						>
 					</div>
 
@@ -686,7 +687,9 @@
 							class="p-3 bg-deep-navy/55 border border-slate-gray/5 rounded-xl flex items-center justify-between"
 						>
 							<span class="text-xs font-bold text-pale-silver">{activeCompanionName}</span>
-							<a href="/settings" class="text-xs text-violet-glow hover:underline">Change</a>
+							<a href={resolveRoute('/settings')} class="text-xs text-violet-glow hover:underline"
+								>Change</a
+							>
 						</div>
 					</div>
 
