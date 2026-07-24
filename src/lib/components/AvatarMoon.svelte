@@ -30,7 +30,7 @@
 
 	// Reactively update spring targets based on currentState
 	$effect(() => {
-		let intervalId: any;
+		let intervalId: ReturnType<typeof setInterval> | undefined;
 
 		if (currentState === 'listening') {
 			scale.set(1.15);

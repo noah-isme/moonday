@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteDate } from 'svelte/reactivity';
 import { characterStore } from './character.svelte';
 import { settingsStore } from './settings.svelte';
 import { uiStore } from '$lib/stores/ui.svelte';
@@ -368,7 +369,7 @@ export class ChatStore {
 			id: crypto.randomUUID(),
 			role: 'user',
 			content,
-			createdAt: new Date().toISOString()
+			createdAt: new SvelteDate().toISOString()
 		};
 
 		this.messages[this.activeId] = [...(this.messages[this.activeId] || []), userMsg];
@@ -421,7 +422,7 @@ export class ChatStore {
 				id: assistantMsgId,
 				role: 'assistant',
 				content: '',
-				createdAt: new Date().toISOString()
+				createdAt: new SvelteDate().toISOString()
 			};
 			this.messages[this.activeId] = [...(this.messages[this.activeId] || []), assistantMsg];
 
@@ -509,7 +510,7 @@ export class ChatStore {
 									if (conv) {
 										conv.lastEmotionLabel = finalEmotionLabel;
 										conv.lastMoodScore = finalMoodScore;
-										conv.updatedAt = new Date().toISOString();
+										conv.updatedAt = new SvelteDate().toISOString();
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
@@ -517,8 +518,8 @@ export class ChatStore {
 									uiStore.setMoonState('idle');
 									return;
 								}
-							} catch (e) {
-								console.error('Error parsing SSE line:', e);
+							} catch {
+								console.error('Error parsing SSE line:');
 							}
 						}
 					}
@@ -534,7 +535,7 @@ export class ChatStore {
 							const currentContent = msg ? msg.content : '';
 							updateMessage({ content: currentContent + data.content });
 						}
-					} catch (e) {
+					} catch {
 						// Ignore
 					}
 				}
@@ -612,7 +613,7 @@ export class ChatStore {
 				id: assistantMsgId,
 				role: 'assistant',
 				content: '',
-				createdAt: new Date().toISOString()
+				createdAt: new SvelteDate().toISOString()
 			};
 			this.messages[conversationId] = [...(this.messages[conversationId] || []), assistantMsg];
 
@@ -687,7 +688,7 @@ export class ChatStore {
 									if (conv) {
 										conv.lastEmotionLabel = finalEmotionLabel;
 										conv.lastMoodScore = finalMoodScore;
-										conv.updatedAt = new Date().toISOString();
+										conv.updatedAt = new SvelteDate().toISOString();
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
@@ -695,8 +696,8 @@ export class ChatStore {
 									uiStore.setMoonState('idle');
 									return;
 								}
-							} catch (e) {
-								console.error('Error parsing SSE line:', e);
+							} catch {
+								console.error('Error parsing SSE line:');
 							}
 						}
 					}
@@ -712,7 +713,7 @@ export class ChatStore {
 							const currentContent = msg ? msg.content : '';
 							updateMessage({ content: currentContent + data.content });
 						}
-					} catch (e) {
+					} catch {
 						// Ignore
 					}
 				}
@@ -887,7 +888,7 @@ export class ChatStore {
 									if (conv) {
 										conv.lastEmotionLabel = finalEmotionLabel;
 										conv.lastMoodScore = finalMoodScore;
-										conv.updatedAt = new Date().toISOString();
+										conv.updatedAt = new SvelteDate().toISOString();
 									}
 									uiStore.setMoonState('idle');
 								} else if (data.type === 'error') {
@@ -895,8 +896,8 @@ export class ChatStore {
 									uiStore.setMoonState('idle');
 									return;
 								}
-							} catch (e) {
-								console.error('Error parsing SSE line:', e);
+							} catch {
+								console.error('Error parsing SSE line:');
 							}
 						}
 					}
@@ -912,7 +913,7 @@ export class ChatStore {
 							const currentContent = msg ? msg.content : '';
 							updateMessage({ content: currentContent + data.content });
 						}
-					} catch (e) {
+					} catch {
 						// Ignore
 					}
 				}

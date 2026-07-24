@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { db, client } from '../lib/server/db/client';
 import {
 	users,
@@ -13,6 +14,25 @@ import { createMemoryWithEmbedding } from '../lib/server/db/queries/memories';
 import { POST as chatPOST } from '../routes/api/chat/+server';
 import { aiRouter } from '../lib/server/ai/router';
 import { getDefaultCharacterProfile } from '../lib/server/db/queries/characters';
+
+function createMockEvent(request: Request): RequestEvent<Record<string, string>, '/api/chat'> {
+	return {
+		request,
+		params: {},
+		route: { id: '/api/chat' },
+		url: new URL(request.url),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => `127.0.0.${Math.floor(Math.random() * 254) + 1}`,
+		routePattern: '/api/chat'
+	} as unknown as RequestEvent<Record<string, string>, '/api/chat'>;
+}
 
 describe('Memory Cascade and Truncation Sweeper Tests', () => {
 	let testUserId: string;
@@ -141,7 +161,7 @@ describe('Memory Cascade and Truncation Sweeper Tests', () => {
 		const T3 = new Date(now - 6000);
 		const T4 = new Date(now - 4000);
 
-		const [msg1] = await db
+		await db
 			.insert(messages)
 			.values({
 				conversationId: testConversationId,
@@ -151,7 +171,7 @@ describe('Memory Cascade and Truncation Sweeper Tests', () => {
 			})
 			.returning();
 
-		const [msg2] = await db
+		await db
 			.insert(messages)
 			.values({
 				conversationId: testConversationId,
@@ -238,12 +258,7 @@ describe('Memory Cascade and Truncation Sweeper Tests', () => {
 			body: payload
 		});
 
-		const mockEvent = {
-			request,
-			getClientAddress: () => `127.0.0.${Math.floor(Math.random() * 254) + 1}`
-		};
-
-		const response = await chatPOST(mockEvent as any);
+		const response = await chatPOST(createMockEvent(request));
 		expect(response.status).toBe(200);
 
 		// 6. Verify that msg4 (the subsequent message) was deleted

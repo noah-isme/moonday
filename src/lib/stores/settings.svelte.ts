@@ -26,7 +26,11 @@ export class SettingsStore {
 						this.voiceInputEnabled = parsed.voiceInputEnabled;
 					if (parsed.voiceOutputEnabled !== undefined)
 						this.voiceOutputEnabled = parsed.voiceOutputEnabled;
-					if (typeof parsed.voiceRate === 'number' && parsed.voiceRate >= 0.7 && parsed.voiceRate <= 1.3)
+					if (
+						typeof parsed.voiceRate === 'number' &&
+						parsed.voiceRate >= 0.7 &&
+						parsed.voiceRate <= 1.3
+					)
 						this.voiceRate = parsed.voiceRate;
 					if (typeof parsed.voiceName === 'string') this.voiceName = parsed.voiceName;
 					if (parsed.memoryExtractionEnabled !== undefined)

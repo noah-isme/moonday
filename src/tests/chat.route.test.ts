@@ -1,10 +1,70 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { POST as chatPOST } from '../routes/api/chat/+server';
 import { POST as moodPOST } from '../routes/api/mood/+server';
 import { POST as reflectionPOST } from '../routes/api/reflections/+server';
 import { db, client } from '../lib/server/db/client';
 import { users } from '../lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+
+function createMockEvent(request: Request): RequestEvent<Record<string, string>, '/api/chat'> {
+	return {
+		request,
+		params: {},
+		route: { id: '/api/chat' },
+		url: new URL(request.url),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => '127.0.0.1',
+		routePattern: '/api/chat'
+	} as unknown as RequestEvent<Record<string, string>, '/api/chat'>;
+}
+
+function createMockMoodEvent(request: Request): RequestEvent<Record<string, string>, '/api/mood'> {
+	return {
+		request,
+		params: {},
+		route: { id: '/api/mood' },
+		url: new URL(request.url),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => '127.0.0.1',
+		routePattern: '/api/mood'
+	} as unknown as RequestEvent<Record<string, string>, '/api/mood'>;
+}
+
+function createMockReflectionEvent(
+	request: Request
+): RequestEvent<Record<string, string>, '/api/reflections'> {
+	return {
+		request,
+		params: {},
+		route: { id: '/api/reflections' },
+		url: new URL(request.url),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => '127.0.0.1',
+		routePattern: '/api/reflections'
+	} as unknown as RequestEvent<Record<string, string>, '/api/reflections'>;
+}
 
 describe('API Route Validation & Security', () => {
 	beforeAll(async () => {
@@ -24,7 +84,7 @@ describe('API Route Validation & Security', () => {
 			body: '{ malformed json '
 		});
 
-		const response = await chatPOST({ request } as any);
+		const response = await chatPOST(createMockEvent(request));
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error.code).toBe('MALFORMED_JSON');
@@ -37,7 +97,7 @@ describe('API Route Validation & Security', () => {
 			body: JSON.stringify({ message: '   ' })
 		});
 
-		const response = await chatPOST({ request } as any);
+		const response = await chatPOST(createMockEvent(request));
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error.code).toBe('VALIDATION_ERROR');
@@ -51,7 +111,7 @@ describe('API Route Validation & Security', () => {
 			body: JSON.stringify({ message: largeMessage })
 		});
 
-		const response = await chatPOST({ request } as any);
+		const response = await chatPOST(createMockEvent(request));
 		expect(response.status).toBe(413);
 		const data = await response.json();
 		expect(data.error.code).toBe('PAYLOAD_TOO_LARGE');
@@ -64,7 +124,7 @@ describe('API Route Validation & Security', () => {
 			body: '{ bad '
 		});
 
-		const response = await moodPOST({ request } as any);
+		const response = await moodPOST(createMockMoodEvent(request));
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error.code).toBe('MALFORMED_JSON');
@@ -80,7 +140,7 @@ describe('API Route Validation & Security', () => {
 			})
 		});
 
-		const response = await moodPOST({ request } as any);
+		const response = await moodPOST(createMockMoodEvent(request));
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error.code).toBe('VALIDATION_ERROR');
@@ -95,7 +155,7 @@ describe('API Route Validation & Security', () => {
 			})
 		});
 
-		const response = await reflectionPOST({ request } as any);
+		const response = await reflectionPOST(createMockReflectionEvent(request));
 		expect(response.status).toBe(400);
 		const data = await response.json();
 		expect(data.error.code).toBe('VALIDATION_ERROR');

@@ -1,4 +1,5 @@
 export type ImageAttachment = {
+	id: string;
 	name: string;
 	mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 	dataUrl: string;

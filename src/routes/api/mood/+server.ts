@@ -5,6 +5,30 @@ import { users, moodLogs } from '$lib/server/db/schema';
 import { getMoodLogsByUserId, deleteMoodLog } from '$lib/server/db/queries/mood';
 import { z } from 'zod';
 
+interface ZodIssueLike {
+	path: Array<string | number>;
+	message: string;
+}
+
+interface RouteErrorLike {
+	name?: string;
+	message?: string;
+	code?: string;
+	issues?: ZodIssueLike[];
+	errors?: ZodIssueLike[];
+}
+
+interface MoodInsertValues {
+	userId: string;
+	moodLabel: string;
+	moodScore: number;
+	energyLevel: number | null;
+	stressLevel: number | null;
+	note: string | null;
+	createdAt: Date;
+	id?: string;
+}
+
 async function getOrCreateDefaultUser() {
 	let [user] = await db.select().from(users).limit(1);
 	if (!user) {
@@ -60,17 +84,18 @@ export const GET: RequestHandler = async () => {
 		const user = await getOrCreateDefaultUser();
 		const logs = await getMoodLogsByUserId(user.id);
 		return json(logs);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in GET /api/mood:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
+		const routeError = error as RouteErrorLike;
 
 		if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			routeError.message?.includes('db') ||
+			routeError.message?.includes('database') ||
+			routeError.message?.includes('query') ||
+			routeError.code?.startsWith('PG')
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -94,7 +119,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -118,7 +143,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -131,7 +156,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const user = await getOrCreateDefaultUser();
 
 		// 3. Insert log
-		const insertValues: any = {
+		const insertValues: MoodInsertValues = {
 			userId: user.id,
 			moodLabel: validated.moodLabel,
 			moodScore: validated.moodScore,
@@ -148,22 +173,24 @@ export const POST: RequestHandler = async ({ request }) => {
 		const [createdLog] = await db.insert(moodLogs).values(insertValues).returning();
 
 		return json(createdLog, { status: 201 });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in POST /api/mood:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
+		const routeError = error as RouteErrorLike;
 
-		if (error instanceof z.ZodError || error.name === 'ZodError') {
+		if (error instanceof z.ZodError || routeError.name === 'ZodError') {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			const issues = error.issues || error.errors || [];
-			message = issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+			const issues =
+				error instanceof z.ZodError ? error.issues : routeError.issues || routeError.errors || [];
+			message = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			routeError.message?.includes('db') ||
+			routeError.message?.includes('database') ||
+			routeError.message?.includes('query') ||
+			routeError.code?.startsWith('PG')
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -187,7 +214,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -204,7 +231,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -221,22 +248,24 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		}
 
 		return json({ success: true, deleted });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in DELETE /api/mood:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
+		const routeError = error as RouteErrorLike;
 
-		if (error instanceof z.ZodError || error.name === 'ZodError') {
+		if (error instanceof z.ZodError || routeError.name === 'ZodError') {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			const issues = error.issues || error.errors || [];
-			message = issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+			const issues =
+				error instanceof z.ZodError ? error.issues : routeError.issues || routeError.errors || [];
+			message = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			routeError.message?.includes('db') ||
+			routeError.message?.includes('database') ||
+			routeError.message?.includes('query') ||
+			routeError.code?.startsWith('PG')
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';

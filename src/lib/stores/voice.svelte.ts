@@ -38,7 +38,8 @@ export class VoiceStore {
 	initialize() {
 		if (!browser) return;
 
-		this.isSupported = !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
+		this.isSupported =
+			!!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 		this.isSynthesisSupported = !!window.speechSynthesis;
 
 		if (window.speechSynthesis) {
@@ -48,7 +49,6 @@ export class VoiceStore {
 			loadVoices();
 			window.speechSynthesis.onvoiceschanged = loadVoices;
 		}
-
 	}
 
 	private finishListening() {
@@ -84,7 +84,8 @@ export class VoiceStore {
 	private getSpeechLanguage(text: string) {
 		if (settingsStore.responseLanguage === 'en') return 'en-US';
 		if (settingsStore.responseLanguage === 'id') return 'id-ID';
-		const indonesianMarkers = /\b(aku|kamu|yang|dan|tidak|dengan|untuk|saya|ini|itu|terima kasih)\b/i;
+		const indonesianMarkers =
+			/\b(aku|kamu|yang|dan|tidak|dengan|untuk|saya|ini|itu|terima kasih)\b/i;
 		return indonesianMarkers.test(text) ? 'id-ID' : 'en-US';
 	}
 
@@ -106,7 +107,10 @@ export class VoiceStore {
 		const addPart = (part: string) => {
 			const cleanPart = part.trim();
 			if (!cleanPart) return;
-			if (currentChunk && currentChunk.length + cleanPart.length + 1 > MAX_LOCAL_SPEECH_CHUNK_CHARACTERS) {
+			if (
+				currentChunk &&
+				currentChunk.length + cleanPart.length + 1 > MAX_LOCAL_SPEECH_CHUNK_CHARACTERS
+			) {
 				chunks.push(currentChunk);
 				currentChunk = '';
 			}
@@ -116,7 +120,10 @@ export class VoiceStore {
 			}
 			const words = cleanPart.split(/\s+/);
 			for (const word of words) {
-				if (currentChunk && currentChunk.length + word.length + 1 > MAX_LOCAL_SPEECH_CHUNK_CHARACTERS) {
+				if (
+					currentChunk &&
+					currentChunk.length + word.length + 1 > MAX_LOCAL_SPEECH_CHUNK_CHARACTERS
+				) {
 					chunks.push(currentChunk);
 					currentChunk = '';
 				}
@@ -163,7 +170,9 @@ export class VoiceStore {
 			this.mediaStream = stream;
 			const chunks: Blob[] = [];
 			const mimeType = this.preferredMimeType();
-			this.recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+			this.recorder = mimeType
+				? new MediaRecorder(stream, { mimeType })
+				: new MediaRecorder(stream);
 			this.recorder.ondataavailable = (event) => {
 				if (event.data.size > 0) chunks.push(event.data);
 			};
@@ -181,10 +190,12 @@ export class VoiceStore {
 					const data = await response.json();
 					if (!response.ok) throw new Error(data.error?.message || 'Unable to transcribe audio.');
 					this.transcript = String(data.text || '').trim();
-					if (!this.transcript) this.errorMessage = 'No speech was detected. Try a little closer to the microphone.';
+					if (!this.transcript)
+						this.errorMessage = 'No speech was detected. Try a little closer to the microphone.';
 					else this.onTranscriptChange?.(this.transcript);
 				} catch (error) {
-					this.errorMessage = error instanceof Error ? error.message : 'Unable to transcribe audio.';
+					this.errorMessage =
+						error instanceof Error ? error.message : 'Unable to transcribe audio.';
 				} finally {
 					this.isTranscribing = false;
 				}
@@ -224,7 +235,8 @@ export class VoiceStore {
 				await this.currentAudio.play();
 				this.isSpeaking = true;
 			} catch {
-				this.errorMessage = 'Your browser blocked audio playback. Allow sound for this site, then try again.';
+				this.errorMessage =
+					'Your browser blocked audio playback. Allow sound for this site, then try again.';
 			}
 			return;
 		}
@@ -244,11 +256,7 @@ export class VoiceStore {
 			return;
 		}
 
-		this.speakWithBrowser(
-			cleanText,
-			language,
-			null
-		);
+		this.speakWithBrowser(cleanText, language, null);
 	}
 
 	private async playNextLocalChunk(requestId: number) {
@@ -286,7 +294,8 @@ export class VoiceStore {
 			audio.onerror = () => {
 				this.finishAudioPlayback(audio);
 				this.pendingSpeechChunks = [];
-				this.errorMessage = 'MOONDAY could not play the locally generated audio. Check your system output device.';
+				this.errorMessage =
+					'MOONDAY could not play the locally generated audio. Check your system output device.';
 			};
 			try {
 				await audio.play();
@@ -294,24 +303,35 @@ export class VoiceStore {
 				this.isPreparingSpeech = false;
 				this.isSpeaking = false;
 				if (error instanceof DOMException && error.name === 'NotAllowedError') {
-					this.errorMessage = 'Your browser blocked automatic audio. Click Speak under this reply to play the prepared local clip.';
+					this.errorMessage =
+						'Your browser blocked automatic audio. Click Speak under this reply to play the prepared local clip.';
 					return;
 				}
 				this.finishAudioPlayback(audio);
 				throw error;
 			}
 		} catch (error) {
-			if (requestId !== this.speechRequestId || (error instanceof DOMException && error.name === 'AbortError')) return;
+			if (
+				requestId !== this.speechRequestId ||
+				(error instanceof DOMException && error.name === 'AbortError')
+			)
+				return;
 			this.isSpeaking = false;
 			this.isPreparingSpeech = false;
 			this.pendingSpeechChunks = [];
-			this.errorMessage = error instanceof Error ? error.message : 'Local MOONDAY voice could not generate audio.';
+			this.errorMessage =
+				error instanceof Error ? error.message : 'Local MOONDAY voice could not generate audio.';
 		}
 	}
 
-	private speakWithBrowser(cleanText: string, language: string, fallbackNotice: string | null = null) {
+	private speakWithBrowser(
+		cleanText: string,
+		language: string,
+		fallbackNotice: string | null = null
+	) {
 		if (!window.speechSynthesis) {
-			this.errorMessage = 'Local MOONDAY voice is unavailable and this browser has no speech fallback.';
+			this.errorMessage =
+				'Local MOONDAY voice is unavailable and this browser has no speech fallback.';
 			return;
 		}
 
@@ -325,14 +345,16 @@ export class VoiceStore {
 		const selectedVoice = settingsStore.voiceName
 			? voices.find((voice) => voice.name === settingsStore.voiceName)
 			: undefined;
-		const preferredVoice = selectedVoice ?? voices.find(
-			(v) =>
-				v.lang.toLowerCase().startsWith(utterance.lang.slice(0, 2).toLowerCase()) &&
-				(v.name.includes('Google') ||
-					v.name.includes('Natural') ||
-					v.name.includes('Zira') ||
-					v.name.includes('Samantha'))
-		);
+		const preferredVoice =
+			selectedVoice ??
+			voices.find(
+				(v) =>
+					v.lang.toLowerCase().startsWith(utterance.lang.slice(0, 2).toLowerCase()) &&
+					(v.name.includes('Google') ||
+						v.name.includes('Natural') ||
+						v.name.includes('Zira') ||
+						v.name.includes('Samantha'))
+			);
 		if (preferredVoice) {
 			utterance.voice = preferredVoice;
 		}

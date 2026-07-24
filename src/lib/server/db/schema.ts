@@ -42,7 +42,7 @@ export const userProfiles = pgTable('user_profiles', {
 	bio: text('bio'),
 	occupation: text('occupation'),
 	communicationStyle: jsonb('communication_style')
-		.$type<Record<string, any>>()
+		.$type<Record<string, unknown>>()
 		.default({})
 		.notNull()
 });

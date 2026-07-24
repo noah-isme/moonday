@@ -75,9 +75,18 @@ export async function fetchFromTavily(query: string): Promise<SearchResult[]> {
 		throw new Error(`Tavily search API responded with status ${res.status}: ${res.statusText}`);
 	}
 
-	const data = (await res.json()) as any;
-	if (data && Array.isArray(data.results)) {
-		return data.results.map((r: any) => ({
+	const data = (await res.json()) as unknown;
+	if (
+		data &&
+		typeof data === 'object' &&
+		'results' in data &&
+		Array.isArray((data as { results: unknown[] }).results)
+	) {
+		return (
+			data as {
+				results: Array<{ title?: string; url?: string; content?: string; snippet?: string }>;
+			}
+		).results.map((r) => ({
 			title: r.title || 'Untitled',
 			url: r.url || '',
 			snippet: r.content || r.snippet || ''
@@ -110,9 +119,20 @@ export async function fetchFromBrave(query: string): Promise<SearchResult[]> {
 		throw new Error(`Brave search API responded with status ${res.status}: ${res.statusText}`);
 	}
 
-	const data = (await res.json()) as any;
-	if (data && data.web && Array.isArray(data.web.results)) {
-		return data.web.results.map((r: any) => ({
+	const data = (await res.json()) as unknown;
+	if (
+		data &&
+		typeof data === 'object' &&
+		'web' in data &&
+		Array.isArray((data as { web: { results: unknown[] } }).web.results)
+	) {
+		return (
+			data as {
+				web: {
+					results: Array<{ title?: string; url?: string; description?: string; snippet?: string }>;
+				};
+			}
+		).web.results.map((r) => ({
 			title: r.title || 'Untitled',
 			url: r.url || '',
 			snippet: r.description || r.snippet || ''
@@ -245,22 +265,28 @@ export const searchToolsSpecification = [
 /**
  * Executes the requested tool and handles fallbacks gracefully.
  */
-export async function executeTool(name: string, args: any): Promise<string> {
+export async function executeTool(name: string, args: unknown): Promise<string> {
 	try {
 		if (name === 'web_search') {
-			const query = args.query;
-			if (!query) {
-				throw new Error('Missing "query" parameter for web_search');
+			if (args && typeof args === 'object' && 'query' in args && typeof args.query === 'string') {
+				const query = args.query;
+				if (!query) {
+					throw new Error('Missing "query" parameter for web_search');
+				}
+				const results = await webSearch(query);
+				return JSON.stringify(results, null, 2);
 			}
-			const results = await webSearch(query);
-			return JSON.stringify(results, null, 2);
+			throw new Error('Missing "query" parameter for web_search');
 		} else if (name === 'deep_read') {
-			const url = args.url;
-			if (!url) {
-				throw new Error('Missing "url" parameter for deep_read');
+			if (args && typeof args === 'object' && 'url' in args && typeof args.url === 'string') {
+				const url = args.url;
+				if (!url) {
+					throw new Error('Missing "url" parameter for deep_read');
+				}
+				const markdown = await deepRead(url);
+				return markdown;
 			}
-			const markdown = await deepRead(url);
-			return markdown;
+			throw new Error('Missing "url" parameter for deep_read');
 		} else {
 			throw new Error(`Unsupported tool: ${name}`);
 		}

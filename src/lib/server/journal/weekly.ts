@@ -31,11 +31,14 @@ export function buildWeeklyDraft(source: WeeklySource) {
 				: `Your logged mood averaged ${averageMood.toFixed(1)} out of 5 across ${source.moods.length} check-in${source.moods.length === 1 ? '' : 's'} this week.`,
 		whatHelped:
 			source.reflections[0]?.moodSummary ||
-			(source.goals.length ? `You kept ${source.goals[0].title} in view.` : 'No clear helper is recorded yet.'),
+			(source.goals.length
+				? `You kept ${source.goals[0].title} in view.`
+				: 'No clear helper is recorded yet.'),
 		whatFeltHeavy:
 			averageStress === null
 				? 'No stress pattern is recorded yet.'
 				: `Your logged stress averaged ${averageStress.toFixed(1)} out of 5. Treat this as a signal to check in, not a diagnosis.`,
-		suggestedFocus: focus || 'Choose one small, realistic thing that would make the next few days easier.'
+		suggestedFocus:
+			focus || 'Choose one small, realistic thing that would make the next few days easier.'
 	};
 }

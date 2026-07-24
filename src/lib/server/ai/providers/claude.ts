@@ -103,7 +103,7 @@ export class ClaudeProvider implements AIProvider {
 									} else if (parsed.type === 'message_delta' && parsed.usage) {
 										completionTokens = parsed.usage.output_tokens;
 									}
-								} catch (e) {
+								} catch {
 									// Ignore malformed JSON chunks
 								}
 							}
@@ -125,7 +125,7 @@ export class ClaudeProvider implements AIProvider {
 								} else if (parsed.type === 'message_delta' && parsed.usage) {
 									completionTokens = parsed.usage.output_tokens;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore
 							}
 						}
@@ -269,7 +269,7 @@ export class ClaudeProvider implements AIProvider {
 								} else if (parsed.type === 'message_delta') {
 									completionTokens = parsed.usage?.output_tokens;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore malformed JSON chunks
 							}
 						}
@@ -293,7 +293,7 @@ export class ClaudeProvider implements AIProvider {
 							} else if (parsed.type === 'message_delta') {
 								completionTokens = parsed.usage?.output_tokens;
 							}
-						} catch (e) {
+						} catch {
 							// Ignore
 						}
 					}

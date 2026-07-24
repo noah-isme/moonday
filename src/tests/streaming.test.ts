@@ -1,14 +1,35 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { DeepSeekProvider } from '../lib/server/ai/providers/deepseek';
 import { ClaudeProvider } from '../lib/server/ai/providers/claude';
 import { GroqProvider } from '../lib/server/ai/providers/groq';
 import { POST as chatPOST } from '../routes/api/chat/+server';
 import { aiRouter } from '../lib/server/ai/router';
+import type { ChatStreamChunk, GenerateChatResult } from '../lib/server/ai/types';
 
-vi.mock('$env/dynamic/private', () => {
-	const fs = require('fs');
-	const path = require('path');
-	const dotenvPath = path.resolve(process.cwd(), '.env');
+function createMockChatEvent(request: Request): RequestEvent<Record<string, string>, '/api/chat'> {
+	return {
+		request,
+		params: {},
+		route: { id: '/api/chat' },
+		url: new URL(request.url),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => '127.0.0.1',
+		routePattern: '/api/chat'
+	} as unknown as RequestEvent<Record<string, string>, '/api/chat'>;
+}
+
+vi.mock('$env/dynamic/private', async () => {
+	const fs = await import('fs');
+	const path = await import('path');
+	const dotenvPath = path.default.resolve(process.cwd(), '.env');
 	let databaseUrl = 'postgres://buroq_user:buroq_pass@localhost:5433/moonday';
 	try {
 		const dotenvContent = fs.readFileSync(dotenvPath, 'utf8');
@@ -16,7 +37,7 @@ vi.mock('$env/dynamic/private', () => {
 		if (match) {
 			databaseUrl = match[1];
 		}
-	} catch (e) {
+	} catch {
 		if (process.env.DATABASE_URL) {
 			databaseUrl = process.env.DATABASE_URL;
 		}
@@ -260,7 +281,11 @@ describe('SvelteKit POST /api/chat SSE endpoint', () => {
 
 		vi.spyOn(aiRouter, 'generateChat').mockImplementation(async (taskType, options) => {
 			if (options.stream) {
-				return mockGenerator() as any;
+				return mockGenerator() as unknown as AsyncGenerator<
+					ChatStreamChunk,
+					GenerateChatResult,
+					unknown
+				>;
 			}
 			return {
 				content: 'Hello world',
@@ -278,7 +303,8 @@ describe('SvelteKit POST /api/chat SSE endpoint', () => {
 			})
 		});
 
-		const response = await chatPOST({ request } as any);
+		const mockEvent = createMockChatEvent(request);
+		const response = await chatPOST(mockEvent);
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('Content-Type')).toBe('text/event-stream');
@@ -290,7 +316,7 @@ describe('SvelteKit POST /api/chat SSE endpoint', () => {
 
 		const decoder = new TextDecoder();
 		let buffer = '';
-		const parsedEvents: any[] = [];
+		const parsedEvents: unknown[] = [];
 
 		while (true) {
 			const { done, value } = await reader!.read();

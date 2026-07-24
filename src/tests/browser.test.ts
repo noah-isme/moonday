@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import {
-	webSearch,
-	fetchFromSearXNG,
-	fetchFromTavily,
-	fetchFromBrave
-} from '../lib/server/tools/browser';
+import { webSearch, fetchFromSearXNG } from '../lib/server/tools/browser';
 
 vi.mock('$env/dynamic/private', () => {
 	return {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$app/environment', () => ({ browser: true }));
@@ -8,18 +7,62 @@ class MockMediaRecorder {
 	state: 'inactive' | 'recording' = 'inactive';
 	ondataavailable: ((event: { data: Blob }) => void) | null = null;
 	onstop: (() => Promise<void> | void) | null = null;
-	constructor(public stream: MediaStream, public options?: MediaRecorderOptions) {}
+	constructor(
+		public stream: MediaStream,
+		public options?: MediaRecorderOptions
+	) {}
 	start = vi.fn(() => (this.state = 'recording'));
 	stop = vi.fn(() => (this.state = 'inactive'));
 }
 
+class MockSpeechSynthesisUtterance {
+	text: string;
+	lang = '';
+	rate = 1;
+	pitch = 1;
+	voice: SpeechSynthesisVoice | null = null;
+	onstart: (() => void) | null = null;
+	onend: (() => void) | null = null;
+	onerror: ((event: { error: string }) => void) | null = null;
+	constructor(text: string) {
+		this.text = text;
+	}
+}
+
+type VoiceStoreInternals = {
+	recorder: MockMediaRecorder | null;
+	currentAudio: HTMLAudioElement | null;
+};
+
+const mockSpeechSynthesis = {
+	speak: vi.fn(),
+	cancel: vi.fn(),
+	getVoices: vi.fn().mockReturnValue([])
+};
+
 const mockTrackStop = vi.fn();
-const mockStream = { getTracks: () => [{ stop: mockTrackStop }] } as any;
+const mockStream = {
+	getTracks: () => [{ stop: mockTrackStop }],
+	active: true,
+	id: 'mock-stream-id',
+	onaddtrack: null,
+	onremovetrack: null,
+	addTrack: vi.fn(),
+	removeTrack: vi.fn(),
+	clone: vi.fn(),
+	getAudioTracks: vi.fn().mockReturnValue([]),
+	getVideoTracks: vi.fn().mockReturnValue([]),
+	getTrackById: vi.fn(),
+	addEventListener: vi.fn(),
+	removeEventListener: vi.fn(),
+	dispatchEvent: vi.fn()
+} as unknown as MediaStream;
 let mockGetUserMedia: ReturnType<typeof vi.fn>;
 
-globalThis.window = {
-	speechSynthesis: { speak: vi.fn(), cancel: vi.fn(), getVoices: vi.fn().mockReturnValue([]) }
-} as any;
+Object.defineProperty(globalThis, 'window', {
+	configurable: true,
+	value: { speechSynthesis: mockSpeechSynthesis }
+});
 globalThis.localStorage = {
 	getItem: () => null,
 	setItem: () => {},
@@ -28,17 +71,8 @@ globalThis.localStorage = {
 	key: () => null,
 	length: 0
 };
-globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
-	text: string;
-	lang = '';
-	rate = 1;
-	pitch = 1;
-	voice: SpeechSynthesisVoice | null = null;
-	onstart: (() => void) | null = null;
-	onend: (() => void) | null = null;
-	onerror: (() => void) | null = null;
-	constructor(text: string) { this.text = text; }
-} as any;
+globalThis.SpeechSynthesisUtterance =
+	MockSpeechSynthesisUtterance as typeof SpeechSynthesisUtterance;
 
 describe('VoiceStore', () => {
 	beforeEach(() => {
@@ -48,12 +82,17 @@ describe('VoiceStore', () => {
 			configurable: true,
 			value: { language: 'en-US', mediaDevices: { getUserMedia: mockGetUserMedia } }
 		});
-		(globalThis as any).MediaRecorder = MockMediaRecorder;
-		globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ text: 'Recorded words' }) }) as any;
+		Object.defineProperty(globalThis, 'MediaRecorder', {
+			configurable: true,
+			value: MockMediaRecorder
+		});
+		globalThis.fetch = vi
+			.fn()
+			.mockResolvedValue({ ok: true, json: async () => ({ text: 'Recorded words' }) });
 	});
 
 	afterEach(() => {
-		delete (globalThis as any).MediaRecorder;
+		Reflect.deleteProperty(globalThis, 'MediaRecorder');
 	});
 
 	it('uses MediaRecorder when microphone recording is available', async () => {
@@ -63,7 +102,7 @@ describe('VoiceStore', () => {
 		await store.startListening();
 		expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true });
 		expect(store.recognitionState).toBe('listening');
-		expect((store as any).recorder).toBeInstanceOf(MockMediaRecorder);
+		expect((store as unknown as VoiceStoreInternals).recorder).toBeInstanceOf(MockMediaRecorder);
 	});
 
 	it('posts the stopped recording and exposes an editable transcript', async () => {
@@ -72,11 +111,16 @@ describe('VoiceStore', () => {
 		const onTranscriptChange = vi.fn();
 		store.onTranscriptChange = onTranscriptChange;
 		await store.startListening();
-		const recorder = (store as any).recorder as MockMediaRecorder;
+		const recorder = (store as unknown as VoiceStoreInternals).recorder;
+		expect(recorder).toBeInstanceOf(MockMediaRecorder);
+		if (!recorder) throw new Error('Expected recorder to be initialized.');
 		store.stopListening();
 		recorder.ondataavailable?.({ data: new Blob(['audio'], { type: 'audio/webm' }) });
 		await recorder.onstop?.();
-		expect(globalThis.fetch).toHaveBeenCalledWith('/api/transcribe', expect.objectContaining({ method: 'POST' }));
+		expect(globalThis.fetch).toHaveBeenCalledWith(
+			'/api/transcribe',
+			expect.objectContaining({ method: 'POST' })
+		);
 		expect(store.transcript).toBe('Recorded words');
 		expect(onTranscriptChange).toHaveBeenCalledWith('Recorded words');
 		expect(mockTrackStop).toHaveBeenCalled();
@@ -96,8 +140,10 @@ describe('VoiceStore', () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
 		store.speak('One. Two. Three. Four.');
-		const utterance = (window.speechSynthesis.speak as any).mock.calls.at(-1)[0];
-		expect(utterance.text).toBe('One. Two. Three. Four.');
+		const utterance = mockSpeechSynthesis.speak.mock.calls.at(-1)?.[0] as
+			MockSpeechSynthesisUtterance | undefined;
+		expect(utterance).toBeDefined();
+		expect(utterance!.text).toBe('One. Two. Three. Four.');
 	});
 
 	it('uses the same-origin local speech route for English when audio playback is available', async () => {
@@ -109,7 +155,10 @@ describe('VoiceStore', () => {
 			pause = vi.fn();
 			constructor(public source: string) {}
 		}
-		(globalThis as any).Audio = MockAudio;
+		Object.defineProperty(globalThis, 'Audio', {
+			configurable: true,
+			value: MockAudio
+		});
 		Object.assign(globalThis.URL, {
 			createObjectURL: vi.fn().mockReturnValue('blob:moonday-audio'),
 			revokeObjectURL: vi.fn()
@@ -117,7 +166,7 @@ describe('VoiceStore', () => {
 		globalThis.fetch = vi.fn().mockResolvedValue({
 			ok: true,
 			blob: async () => new Blob(['audio'], { type: 'audio/wav' })
-		}) as any;
+		});
 
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
@@ -127,16 +176,19 @@ describe('VoiceStore', () => {
 			'/api/speech',
 			expect.objectContaining({ method: 'POST' })
 		);
-		expect((store as any).currentAudio).toBeInstanceOf(MockAudio);
-		delete (globalThis as any).Audio;
+		expect((store as unknown as VoiceStoreInternals).currentAudio).toBeInstanceOf(MockAudio);
+		Reflect.deleteProperty(globalThis, 'Audio');
 	});
 
 	it('does not report expected speech cancellation as a playback failure', async () => {
 		const { VoiceStore } = await import('../lib/stores/voice.svelte');
 		const store = new VoiceStore();
 		store.speak('Hello there.');
-		const utterance = (window.speechSynthesis.speak as any).mock.calls.at(-1)[0];
-		utterance.onerror({ error: 'canceled' });
+		const utterance = mockSpeechSynthesis.speak.mock.calls.at(-1)?.[0] as
+			MockSpeechSynthesisUtterance | undefined;
+		expect(utterance).toBeDefined();
+		expect(utterance!.onerror).toBeDefined();
+		utterance!.onerror!({ error: 'canceled' });
 		expect(store.errorMessage).toBeNull();
 	});
 });

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-let env: any = {};
+let env: Record<string, unknown> = {};
 
 // Load SvelteKit's dynamic private env asynchronously to avoid static analysis issues in CLI tools like drizzle-kit
 import('$env/dynamic/private')
@@ -34,7 +34,7 @@ function getKey(): string {
 		return testKeyOverride;
 	}
 
-	let key = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+	let key = (env.ENCRYPTION_KEY as string) || process.env.ENCRYPTION_KEY;
 
 	// Fallback to a default key in test environment if none is configured
 	if (!key && process.env.NODE_ENV === 'test') {

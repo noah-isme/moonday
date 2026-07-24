@@ -8,8 +8,8 @@
 	import { CircleCheck, TriangleAlert } from 'lucide-svelte';
 
 	let { data, form } = $props<{
-		data: { profile: any };
-		form: { success?: boolean; error?: any; values?: any } | null;
+		data: { profile: unknown };
+		form: { success?: boolean; error?: unknown; values?: unknown } | null;
 	}>();
 
 	let isSubmitting = $state(false);
@@ -169,15 +169,6 @@
 		else if (trait === 'responseLength') responseLength = val;
 		else if (trait === 'questionFrequency') questionFrequency = val;
 		else if (trait === 'curiosity') curiosity = val;
-	}
-
-	function setPreference(id: string, value: number) {
-		if (id === 'warmth') warmth = value;
-		else if (id === 'directness') directness = value;
-		else if (id === 'humor') humor = value;
-		else if (id === 'responseLength') responseLength = value;
-		else if (id === 'questionFrequency') questionFrequency = value;
-		else if (id === 'curiosity') curiosity = value;
 	}
 
 	function applyPreset(preset: (typeof companionPresets)[number]) {

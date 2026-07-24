@@ -4,13 +4,21 @@ export interface EmbeddingService {
 	getEmbedding(text: string): Promise<number[]>;
 }
 
+type FeatureExtractor = (
+	text: string,
+	options: { pooling: 'mean'; normalize: boolean }
+) => Promise<{ data: Float32Array }>;
+
 export class XenovaEmbeddingService implements EmbeddingService {
-	private extractorPromise: Promise<any> | null = null;
+	private extractorPromise: Promise<FeatureExtractor> | null = null;
 	private modelName = 'Xenova/all-MiniLM-L6-v2';
 
-	private getExtractor(): Promise<any> {
+	private getExtractor(): Promise<FeatureExtractor> {
 		if (!this.extractorPromise) {
-			this.extractorPromise = pipeline('feature-extraction', this.modelName);
+			this.extractorPromise = pipeline(
+				'feature-extraction',
+				this.modelName
+			) as Promise<FeatureExtractor>;
 		}
 		return this.extractorPromise;
 	}

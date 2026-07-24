@@ -69,7 +69,7 @@ describe('ChatStore isRerolling and guard clauses', () => {
 				getReader: () => mockReader
 			}
 		};
-		const spyFetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as any);
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
 
 		const promise = store.rerollLastMessage();
 		// In the middle of execution, isRerolling should be true

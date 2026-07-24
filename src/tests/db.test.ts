@@ -1,28 +1,16 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { db, client } from '../lib/server/db/client';
-import {
-	users,
-	characterProfiles,
-	conversations,
-	messages,
-	moodLogs,
-	memories,
-	memoryEmbeddings,
-	dailyReflections
-} from '../lib/server/db/schema';
-import { createUser, getUserById, deleteUser } from '../lib/server/db/queries/users'; // Wait, let's check if we should write users query module as well!
+import { users } from '../lib/server/db/schema';
 import {
 	createConversation,
 	getConversationById,
 	getConversationsByUserId,
-	updateConversation,
-	deleteConversation
+	updateConversation
 } from '../lib/server/db/queries/conversations';
 import {
 	createMessage,
 	getMessagesByConversationId,
-	updateMessageEmotion,
-	deleteMessagesByConversationId
+	updateMessageEmotion
 } from '../lib/server/db/queries/messages';
 import {
 	createMoodLog,
@@ -31,7 +19,6 @@ import {
 } from '../lib/server/db/queries/mood';
 import {
 	createMemoryWithEmbedding,
-	getMemoryById,
 	getMemoriesByUserId,
 	searchMemories,
 	deleteMemory

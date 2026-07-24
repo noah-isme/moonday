@@ -13,6 +13,28 @@ import { embeddingService } from '$lib/server/ai/embeddings';
 import { z } from 'zod';
 import { isSensitiveContent } from '$lib/server/memory/extract';
 
+interface MemoryInsertValues {
+	userId: string;
+	type: string;
+	title: string;
+	content: string;
+	importance: number;
+	confidence: number;
+	sourceConversationId: string | null;
+	sourceMessageId: string | null;
+	isSensitive: boolean;
+	id?: string;
+}
+
+interface MemoryUpdateValues {
+	id?: string;
+	type?: string;
+	title?: string;
+	content?: string;
+	importance?: number;
+	confidence?: number;
+}
+
 async function getOrCreateDefaultUser() {
 	let [user] = await db.select().from(users).limit(1);
 	if (!user) {
@@ -81,17 +103,18 @@ export const GET: RequestHandler = async () => {
 		const user = await getOrCreateDefaultUser();
 		const list = await getMemoriesByUserId(user.id);
 		return json(list);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in GET /api/memories:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
 		if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -115,7 +138,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -139,7 +162,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -232,7 +255,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// 3. Insert memory
-		const insertValues: any = {
+		const insertValues: MemoryInsertValues = {
 			userId: user.id,
 			type: validated.type,
 			title: validated.title,
@@ -258,33 +281,33 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		} catch (embErr) {
 			console.error(`Failed to store embedding for memory ID ${createdMemory.id}:`, embErr);
-			throw new Error('EMBEDDING_FAILURE: Failed to generate vector representation.');
+			throw new Error('EMBEDDING_FAILURE: Failed to generate vector representation.', {
+				cause: embErr
+			});
 		}
 
 		return json(createdMemory, { status: 201 });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in POST /api/memories:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
-		if (error.name === 'ZodError') {
+		if (error instanceof z.ZodError) {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			message = error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
-		} else if (
-			error.message?.includes('EMBEDDING_FAILURE') ||
-			error.message?.includes('embedding') ||
-			error.message?.includes('Embedding')
-		) {
+			const issues = error.issues;
+			message = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+		} else if (error instanceof Error && error.message.includes('EMBEDDING_FAILURE')) {
 			status = 500;
 			code = 'EMBEDDING_ERROR';
 			message = 'Failed to generate embedding for vector search. Please try again.';
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -308,7 +331,7 @@ export const PUT: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -325,7 +348,7 @@ export const PUT: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -352,7 +375,7 @@ export const PUT: RequestHandler = async ({ request }) => {
 			(validated.content !== undefined && validated.content !== existingMemory.content);
 
 		// 3. Update memory
-		const updateValues: any = { ...validated };
+		const updateValues: MemoryUpdateValues = { ...validated };
 		delete updateValues.id;
 
 		const updated = await updateMemory(validated.id, updateValues);
@@ -380,34 +403,34 @@ export const PUT: RequestHandler = async ({ request }) => {
 				});
 			} catch (embErr) {
 				console.error(`Failed to update embedding for memory ID ${updated.id}:`, embErr);
-				throw new Error('EMBEDDING_FAILURE: Failed to update vector representation.');
+				throw new Error('EMBEDDING_FAILURE: Failed to update vector representation.', {
+					cause: embErr
+				});
 			}
 		}
 
 		return json(updated);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in PUT /api/memories:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
-		if (error.name === 'ZodError') {
+		if (error instanceof z.ZodError) {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			message = error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
-		} else if (
-			error.message?.includes('EMBEDDING_FAILURE') ||
-			error.message?.includes('embedding') ||
-			error.message?.includes('Embedding')
-		) {
+			const issues = error.issues;
+			message = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
+		} else if (error instanceof Error && error.message.includes('EMBEDDING_FAILURE')) {
 			status = 500;
 			code = 'EMBEDDING_ERROR';
 			message = 'Failed to generate embedding for vector search. Please try again.';
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -431,7 +454,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -448,7 +471,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -485,21 +508,23 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		}
 
 		return json({ success: true, deleted });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in DELETE /api/memories:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
-		if (error.name === 'ZodError') {
+		if (error instanceof z.ZodError) {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			message = error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+			const issues = error.issues;
+			message = issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(', ');
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';

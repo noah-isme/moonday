@@ -142,7 +142,7 @@ describe('AI Router Routing Rules', () => {
 		(env as unknown as Record<string, string | undefined>).DEFAULT_AI_PROVIDER = undefined;
 
 		try {
-			vi.spyOn(customRouter as any, 'isProviderAvailable').mockReturnValue(true);
+			vi.spyOn(customRouter as AIRouter, 'isProviderAvailable').mockReturnValue(true);
 			const transientError = Object.assign(new Error('DeepSeek API error: 503 unavailable'), {
 				status: 503
 			});

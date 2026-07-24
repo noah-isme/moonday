@@ -44,17 +44,18 @@ export const GET: RequestHandler = async () => {
 		const user = await getOrCreateDefaultUser();
 		const list = await getDailyReflectionsByUserId(user.id);
 		return json(list);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in GET /api/reflections:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
 		if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';
@@ -79,7 +80,7 @@ export const POST: RequestHandler = async (event) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -103,7 +104,7 @@ export const POST: RequestHandler = async (event) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -239,7 +240,9 @@ ${dailyMessages.map((m) => `[${m.role}] ${m.content}`).join('\n')}`;
 			parsedReflection = JSON.parse(jsonText);
 		} catch (parseErr) {
 			console.error('Failed to parse AI reflection JSON:', chatResult.content, parseErr);
-			throw new Error('AI_INVALID_RESPONSE: AI returned an invalid reflection format.');
+			throw new Error('AI_INVALID_RESPONSE: AI returned an invalid reflection format.', {
+				cause: parseErr
+			});
 		}
 
 		// 7. Save or update reflection
@@ -263,42 +266,44 @@ ${dailyMessages.map((m) => `[${m.role}] ${m.content}`).join('\n')}`;
 		}
 
 		return json(reflectionRecord, { status: 201 });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in POST /api/reflections:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
-		if (error instanceof z.ZodError || error.name === 'ZodError') {
+		if (error instanceof z.ZodError) {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			const issues = error.issues || error.errors || [];
-			message = issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
-		} else if (error.message?.includes('AI_INVALID_RESPONSE')) {
-			status = 502;
-			code = 'BAD_GATEWAY';
-			message = 'The reflection engine returned an invalid response format. Please try again.';
-		} else if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
-			status = 504;
-			code = 'AI_PROVIDER_TIMEOUT';
-			message = 'The reflection engine is taking too long to respond. Please try again.';
-		} else if (
-			error.message?.includes('rate limit') ||
-			error.message?.includes('Rate Limit') ||
-			error.status === 429
-		) {
-			status = 429;
-			code = 'AI_PROVIDER_RATE_LIMIT';
-			message = 'AI provider rate limit reached. Please wait a moment before trying again.';
-		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
-		) {
-			status = 500;
-			code = 'DATABASE_ERROR';
-			message = 'A database error occurred while creating/updating daily reflection.';
+			const issues = error.issues;
+			message = issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+		} else if (error instanceof Error) {
+			if (error.message.includes('AI_INVALID_RESPONSE')) {
+				status = 502;
+				code = 'BAD_GATEWAY';
+				message = 'The reflection engine returned an invalid response format. Please try again.';
+			} else if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+				status = 504;
+				code = 'AI_PROVIDER_TIMEOUT';
+				message = 'The reflection engine is taking too long to respond. Please try again.';
+			} else if (
+				error.message.includes('rate limit') ||
+				error.message.includes('Rate Limit') ||
+				(error as Error & { status?: number }).status === 429
+			) {
+				status = 429;
+				code = 'AI_PROVIDER_RATE_LIMIT';
+				message = 'AI provider rate limit reached. Please wait a moment before trying again.';
+			} else if (
+				error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG')
+			) {
+				status = 500;
+				code = 'DATABASE_ERROR';
+				message = 'A database error occurred while creating/updating daily reflection.';
+			}
 		}
 
 		return json({ error: { code, message } }, { status });
@@ -319,7 +324,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let bodyText = '';
 		try {
 			bodyText = await request.text();
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'BAD_REQUEST', message: 'Failed to read request body' } },
 				{ status: 400 }
@@ -336,7 +341,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		let body;
 		try {
 			body = JSON.parse(bodyText);
-		} catch (err) {
+		} catch {
 			return json(
 				{ error: { code: 'MALFORMED_JSON', message: 'Malformed JSON payload' } },
 				{ status: 400 }
@@ -356,22 +361,23 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		}
 
 		return json({ success: true, deleted });
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in DELETE /api/reflections:', error);
 		let status = 500;
 		let code = 'INTERNAL_SERVER_ERROR';
 		let message = 'An unexpected error occurred';
 
-		if (error instanceof z.ZodError || error.name === 'ZodError') {
+		if (error instanceof z.ZodError) {
 			status = 400;
 			code = 'VALIDATION_ERROR';
-			const issues = error.issues || error.errors || [];
-			message = issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+			const issues = error.issues;
+			message = issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
 		} else if (
-			error.message?.includes('db') ||
-			error.message?.includes('database') ||
-			error.message?.includes('query') ||
-			error.code?.startsWith('PG')
+			error instanceof Error &&
+			(error.message.includes('db') ||
+				error.message.includes('database') ||
+				error.message.includes('query') ||
+				(error as Error & { code?: string }).code?.startsWith('PG'))
 		) {
 			status = 500;
 			code = 'DATABASE_ERROR';

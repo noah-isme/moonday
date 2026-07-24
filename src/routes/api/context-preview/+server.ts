@@ -12,7 +12,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		const url = validatePublicHttpUrl(rawUrl);
 		const markdown = await deepRead(url);
 		if (!markdown || markdown.startsWith('[System: Failed')) {
-			return json({ error: { code: 'PREVIEW_UNAVAILABLE', message: 'MOONDAY could not fetch a preview for that link.' } }, { status: 422 });
+			return json(
+				{
+					error: {
+						code: 'PREVIEW_UNAVAILABLE',
+						message: 'MOONDAY could not fetch a preview for that link.'
+					}
+				},
+				{ status: 422 }
+			);
 		}
 		return json({
 			preview: {

@@ -22,7 +22,7 @@ curl http://127.0.0.1:8880/healthz
 The service is healthy when it returns:
 
 ```json
-{"status":"ok"}
+{ "status": "ok" }
 ```
 
 ## Generate a local test clip

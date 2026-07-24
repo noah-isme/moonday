@@ -1,9 +1,4 @@
-import {
-	TraitSchema,
-	compileTraitsToDirectives,
-	UserProfileSchema,
-	compileUserPersona
-} from './compiler';
+import { TraitSchema, compileTraitsToDirectives } from './compiler';
 export {
 	TraitSchema,
 	compileTraitsToDirectives,

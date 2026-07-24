@@ -144,7 +144,7 @@ export class DeepSeekProvider implements AIProvider {
 									promptTokens = parsed.usage.prompt_tokens;
 									completionTokens = parsed.usage.completion_tokens;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore malformed JSON chunks
 							}
 						}
@@ -166,7 +166,7 @@ export class DeepSeekProvider implements AIProvider {
 								promptTokens = parsed.usage.prompt_tokens;
 								completionTokens = parsed.usage.completion_tokens;
 							}
-						} catch (e) {
+						} catch {
 							// Ignore
 						}
 					}

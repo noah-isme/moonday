@@ -28,10 +28,10 @@ export function parseEmotionResponse(content: string): EmotionAnalysis {
 		const analysis = JSON.parse(jsonStr) as EmotionAnalysis;
 
 		// Validate values
-		if (!EMOTIONS.includes(analysis.primaryEmotion as any)) {
+		if (!EMOTIONS.includes(analysis.primaryEmotion)) {
 			analysis.primaryEmotion = 'neutral';
 		}
-		if (analysis.secondaryEmotion && !EMOTIONS.includes(analysis.secondaryEmotion as any)) {
+		if (analysis.secondaryEmotion && !EMOTIONS.includes(analysis.secondaryEmotion)) {
 			analysis.secondaryEmotion = undefined;
 		}
 		if (typeof analysis.moodScore !== 'number' || isNaN(analysis.moodScore)) {

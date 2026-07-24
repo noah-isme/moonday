@@ -23,7 +23,7 @@
 
 <div class="space-y-4">
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		{#each CHARACTERS as character}
+		{#each CHARACTERS as character (character.id)}
 			<button
 				type="button"
 				onclick={() => handleSelect(character.id)}

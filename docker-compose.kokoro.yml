@@ -3,7 +3,7 @@ services:
     build:
       context: ./docker/kokoro
       args:
-        KOKORO_ONNX_VERSION: "0.5.0"
+        KOKORO_ONNX_VERSION: '0.5.0'
     image: moonday/kokoro-tts:local
     container_name: moonday-kokoro-tts
     init: true

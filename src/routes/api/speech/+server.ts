@@ -19,7 +19,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const payload = speechRequestSchema.safeParse(await request.json().catch(() => null));
 	if (!payload.success) {
 		return json(
-			{ error: { code: 'INVALID_SPEECH_REQUEST', message: 'Text or speech settings are invalid.' } },
+			{
+				error: { code: 'INVALID_SPEECH_REQUEST', message: 'Text or speech settings are invalid.' }
+			},
 			{ status: 400 }
 		);
 	}
@@ -39,7 +41,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 		if (!response.ok) {
 			return json(
-				{ error: { code: 'LOCAL_TTS_FAILED', message: 'Local MOONDAY voice could not generate audio.' } },
+				{
+					error: {
+						code: 'LOCAL_TTS_FAILED',
+						message: 'Local MOONDAY voice could not generate audio.'
+					}
+				},
 				{ status: 502 }
 			);
 		}

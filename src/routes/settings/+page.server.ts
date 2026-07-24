@@ -124,9 +124,12 @@ export const actions: Actions = {
 			});
 
 			return { success: true };
-		} catch (err: any) {
+		} catch (err: unknown) {
 			return fail(500, {
-				error: { _form: 'Failed to update profile: ' + (err.message || 'unknown error') },
+				error: {
+					_form:
+						'Failed to update profile: ' + (err instanceof Error ? err.message : 'unknown error')
+				},
 				values: {
 					name,
 					bio,

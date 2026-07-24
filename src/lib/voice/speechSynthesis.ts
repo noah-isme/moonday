@@ -5,7 +5,7 @@ export interface SpeechSynthesisOptions {
 	pitch?: number;
 	onStart?: () => void;
 	onEnd?: () => void;
-	onError?: (event: any) => void;
+	onError?: (event: SpeechSynthesisErrorEvent) => void;
 }
 
 export class MoondaySpeechSynthesis {

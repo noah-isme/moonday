@@ -83,7 +83,7 @@ export class AIRouter {
 		return this.providers[providerName];
 	}
 
-	private isProviderAvailable(name: AIProviderName): boolean {
+	isProviderAvailable(name: AIProviderName): boolean {
 		if (name === 'deepseek') return !!env.DEEPSEEK_API_KEY;
 		if (name === 'claude') return !!env.ANTHROPIC_API_KEY;
 		return !!(process.env.GROQ_API_KEY || env.GROQ_API_KEY);
@@ -159,7 +159,7 @@ export class AIRouter {
 				model: options.model || this.modelFor(providerName, taskType)
 			};
 			try {
-				return await provider.generateChat(mergedOptions as any);
+				return await provider.generateChat(mergedOptions as GenerateChatOptions);
 			} catch (error) {
 				lastError = error;
 				if (!this.isRetryableProviderError(error) || providerName === candidates.at(-1)) {

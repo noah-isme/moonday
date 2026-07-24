@@ -5,19 +5,59 @@ export interface SpeechRecognitionOptions {
 	onResult?: (transcript: string, isFinal: boolean) => void;
 	onStart?: () => void;
 	onEnd?: () => void;
-	onError?: (event: any) => void;
+	onError?: (event: unknown) => void;
 }
 
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+type SpeechRecognitionWindow = Window & {
+	SpeechRecognition?: SpeechRecognitionConstructor;
+	webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
+type SpeechRecognitionAlternative = {
+	readonly transcript: string;
+};
+
+type SpeechRecognitionResult = {
+	readonly isFinal: boolean;
+	readonly 0: SpeechRecognitionAlternative;
+};
+
+type SpeechRecognitionResultList = {
+	readonly length: number;
+	readonly [index: number]: SpeechRecognitionResult;
+};
+
+type SpeechRecognitionResultEvent = {
+	readonly resultIndex: number;
+	readonly results: SpeechRecognitionResultList;
+};
+
+type SpeechRecognitionInstance = {
+	continuous: boolean;
+	interimResults: boolean;
+	lang: string;
+	onstart: (() => void) | null;
+	onend: (() => void) | null;
+	onerror: ((event: unknown) => void) | null;
+	onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+	start: () => void;
+	stop: () => void;
+	abort: () => void;
+};
+
 export class MoondaySpeechRecognition {
-	private recognition: any = null;
+	private recognition: SpeechRecognitionInstance | null = null;
 	private isListening = false;
 	private recognitionState: 'idle' | 'starting' | 'listening' | 'stopping' = 'idle';
 
 	constructor(options: SpeechRecognitionOptions = {}) {
 		if (typeof window === 'undefined') return;
 
+		const speechWindow = window as SpeechRecognitionWindow;
 		const SpeechRecognition =
-			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+			speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 		if (!SpeechRecognition) {
 			console.warn('Web Speech API (SpeechRecognition) is not supported in this browser.');
 			return;
@@ -31,7 +71,7 @@ export class MoondaySpeechRecognition {
 		this.recognition.onstart = () => {
 			if (this.recognitionState === 'stopping') {
 				try {
-					this.recognition.abort();
+					this.recognition?.abort();
 				} catch (e) {
 					console.error('Error aborting onstart in MoondaySpeechRecognition:', e);
 				}
@@ -48,13 +88,13 @@ export class MoondaySpeechRecognition {
 			options.onEnd?.();
 		};
 
-		this.recognition.onerror = (event: any) => {
+		this.recognition.onerror = (event: unknown) => {
 			this.recognitionState = 'idle';
 			this.isListening = false;
 			options.onError?.(event);
 		};
 
-		this.recognition.onresult = (event: any) => {
+		this.recognition.onresult = (event: SpeechRecognitionResultEvent) => {
 			let finalTranscript = '';
 			let interimTranscript = '';
 
@@ -119,6 +159,7 @@ export class MoondaySpeechRecognition {
 
 	public isSupported(): boolean {
 		if (typeof window === 'undefined') return false;
-		return !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+		const speechWindow = window as SpeechRecognitionWindow;
+		return !!(speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition);
 	}
 }

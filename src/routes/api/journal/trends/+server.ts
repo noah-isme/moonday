@@ -28,7 +28,7 @@ export const GET: RequestHandler = async () => {
 			.orderBy(asc(moodLogs.createdAt)) // Chronological order enforced!
 			.limit(50);
 		return json(logs);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		console.error('Error in GET /api/journal/trends:', error);
 		return json(
 			{

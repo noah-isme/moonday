@@ -1,8 +1,28 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { RequestEvent } from '@sveltejs/kit';
 import { GET as trendsGET } from '../routes/api/journal/trends/+server';
 import { db, client } from '../lib/server/db/client';
 import { users, moodLogs } from '../lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+
+function createMockTrendsEvent(): RequestEvent<Record<string, string>, '/api/journal/trends'> {
+	return {
+		request: new Request('http://localhost/api/journal/trends'),
+		params: {},
+		route: { id: '/api/journal/trends' },
+		url: new URL('http://localhost/api/journal/trends'),
+		platform: undefined,
+		locals: {},
+		cookies: {
+			get: () => undefined,
+			set: () => {},
+			delete: () => {}
+		},
+		fetch: () => Promise.resolve(new Response()),
+		getClientAddress: () => '127.0.0.1',
+		routePattern: '/api/journal/trends'
+	} as unknown as RequestEvent<Record<string, string>, '/api/journal/trends'>;
+}
 
 async function getOrCreateDefaultUser() {
 	let [user] = await db.select().from(users).limit(1);
@@ -60,7 +80,7 @@ describe('Journal Trends API Route Chronological Check', () => {
 			}
 		]);
 
-		const response = await trendsGET({} as any);
+		const response = await trendsGET(createMockTrendsEvent());
 		expect(response.status).toBe(200);
 
 		const data = await response.json();
@@ -68,7 +88,9 @@ describe('Journal Trends API Route Chronological Check', () => {
 		expect(data.length).toBeGreaterThanOrEqual(3);
 
 		// Filter to only the ones we just created for clean validation
-		const userLogs = data.filter((log: any) => log.userId === user.id);
+		const userLogs = data.filter(
+			(log: { userId: string; createdAt: string }) => log.userId === user.id
+		);
 
 		// Assert chronological order (ascending)
 		for (let i = 1; i < userLogs.length; i++) {

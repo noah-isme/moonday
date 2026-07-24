@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteDate } from 'svelte/reactivity';
 
 export interface Memory {
 	id: string;
@@ -92,7 +93,7 @@ export class MemoryStore {
 					this.saveToLocalStorage();
 				}
 			}
-		} catch (e) {
+		} catch {
 			console.log('API offline, using local memories store.');
 		}
 	}
@@ -101,7 +102,7 @@ export class MemoryStore {
 		const newMemory: Memory = {
 			...memory,
 			id: crypto.randomUUID(),
-			createdAt: new Date().toISOString()
+			createdAt: new SvelteDate().toISOString()
 		};
 		this.list = [newMemory, ...this.list];
 		this.saveToLocalStorage();
@@ -159,14 +160,14 @@ export class MemoryStore {
 		}
 	}
 
-	private async syncWithBackend(data: any, method: 'POST' | 'PUT' | 'DELETE') {
+	private async syncWithBackend(data: unknown, method: 'POST' | 'PUT' | 'DELETE') {
 		try {
 			await fetch('/api/memories', {
 				method,
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(data)
 			});
-		} catch (e) {
+		} catch {
 			// Fail silently, local storage is source of truth in offline mode
 		}
 	}

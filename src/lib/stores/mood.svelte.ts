@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteDate } from 'svelte/reactivity';
 
 export interface MoodLog {
 	id: string;
@@ -96,8 +97,8 @@ export class MoodStore {
 	logs = $state<MoodLog[]>([]);
 	checkedInToday = $derived.by(() => {
 		if (this.logs.length === 0) return false;
-		const todayStr = new Date().toDateString();
-		return this.logs.some((log) => new Date(log.createdAt).toDateString() === todayStr);
+		const todayStr = new SvelteDate().toDateString();
+		return this.logs.some((log) => new SvelteDate(log.createdAt).toDateString() === todayStr);
 	});
 
 	currentCheckIn = $state<{
@@ -147,7 +148,7 @@ export class MoodStore {
 			energyLevel: this.currentCheckIn.energyLevel,
 			stressLevel: this.currentCheckIn.stressLevel,
 			note: this.currentCheckIn.note,
-			createdAt: new Date().toISOString()
+			createdAt: new SvelteDate().toISOString()
 		};
 
 		this.logs = [newLog, ...this.logs];
@@ -165,7 +166,7 @@ export class MoodStore {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(newLog)
 			});
-		} catch (e) {
+		} catch {
 			console.log('API is offline or mock environment active. Saved locally.');
 		}
 	}

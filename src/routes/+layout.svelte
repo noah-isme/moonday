@@ -5,6 +5,7 @@
 	import { characterStore } from '$lib/stores/character.svelte';
 	import { page } from '$app/state';
 	import { uiStore } from '$lib/stores/ui.svelte';
+	import { resolveRoute } from '$app/paths';
 	import {
 		Bookmark,
 		CircleAlert,
@@ -45,7 +46,7 @@
 			label: 'Settings',
 			Icon: Settings
 		}
-	];
+	] as const;
 
 	// Extract active pathname helper
 	let currentPath = $derived(page.url.pathname);
@@ -96,7 +97,7 @@
 				{@const isActive =
 					currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 				<a
-					href={item.href}
+					href={resolveRoute(item.href)}
 					aria-current={isActive ? 'page' : undefined}
 					class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 group {isActive
 						? 'bg-violet-glow text-deep-navy font-bold shadow-md'
@@ -185,7 +186,7 @@
 			{@const isActive =
 				currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))}
 			<a
-				href={item.href}
+				href={resolveRoute(item.href)}
 				aria-current={isActive ? 'page' : undefined}
 				class="flex h-12 w-14 flex-col items-center justify-center rounded-xl text-xs transition-all duration-300"
 				class:text-violet-glow={isActive}

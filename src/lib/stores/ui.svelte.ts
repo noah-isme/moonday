@@ -11,8 +11,8 @@ export type UINotice = {
 export class UIStore {
 	moonState = $state<MoonState>('idle');
 	notice = $state<UINotice | null>(null);
-	private timeoutId: any = null;
-	private noticeTimeoutId: any = null;
+	private timeoutId: ReturnType<typeof setTimeout> | null = null;
+	private noticeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	setNotice(message: string, tone: NoticeTone = 'success') {
 		this.notice = { message, tone };

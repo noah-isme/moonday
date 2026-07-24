@@ -4,6 +4,7 @@
 	import MoodIcon from '$lib/components/MoodIcon.svelte';
 	import { characterStore } from '$lib/stores/character.svelte';
 	import { MessageCircle, NotebookTabs } from 'lucide-svelte';
+	import { resolveRoute } from '$app/paths';
 
 	let todayLog = $derived.by(() => {
 		if (moodStore.logs.length === 0) return null;
@@ -102,14 +103,14 @@
 			<!-- Navigation Buttons to other parts of app -->
 			<div class="grid grid-cols-2 gap-3 pt-2">
 				<a
-					href="/chat"
+					href={resolveRoute('/chat')}
 					class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-violet-glow text-deep-navy font-semibold text-sm hover:bg-violet-glow/90 shadow-md transition-all duration-300"
 				>
 					<MessageCircle size={17} aria-hidden="true" />
 					<span>Open Reflections</span>
 				</a>
 				<a
-					href="/journal"
+					href={resolveRoute('/journal')}
 					class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-soft-dark-blue border border-slate-gray/10 text-soft-white font-semibold text-sm hover:bg-slate-gray/10 transition-all duration-300"
 				>
 					<NotebookTabs size={17} aria-hidden="true" />

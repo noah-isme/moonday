@@ -49,7 +49,7 @@ export async function saveMemory(
 	}
 
 	// 4. Generate embedding first (needed for similarity check and storing)
-	let embedding: number[] = [];
+	let embedding: number[];
 	try {
 		const embeddingText = `${extracted.title}: ${extracted.content}`;
 		embedding = await embeddingService.getEmbedding(embeddingText);

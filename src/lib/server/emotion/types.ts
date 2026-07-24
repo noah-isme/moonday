@@ -1,6 +1,8 @@
+import type { EmotionLabel } from './classify';
+
 export type EmotionAnalysis = {
-	primaryEmotion: string;
-	secondaryEmotion?: string;
+	primaryEmotion: EmotionLabel;
+	secondaryEmotion?: EmotionLabel;
 	moodScore: number;
 	energyLevel?: number;
 	stressLevel?: number;

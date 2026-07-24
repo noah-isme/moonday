@@ -5,8 +5,11 @@ export type ChatMessage = {
 	content: string;
 	name?: string;
 	tool_call_id?: string;
-	tool_calls?: any[];
-	images?: Array<{ mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'; data: string }>;
+	tool_calls?: unknown[];
+	images?: Array<{
+		mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+		data: string;
+	}>;
 };
 
 export type GenerateChatOptions = {
